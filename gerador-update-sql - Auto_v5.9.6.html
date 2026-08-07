@@ -1,0 +1,1860 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerador de UPDATE SQL - FREGE v5.9.6</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --surface-2: #f9fafb;
+      --surface-3: #f3f4f6;
+      --border: #e5e7eb;
+      --border-strong: #d1d5db;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --text-soft: #475569;
+      --primary: #0f766e;
+      --primary-hover: #0d5d57;
+      --primary-soft: #ecfdf5;
+      --success: #059669;
+      --danger: #dc2626;
+      --info: #0ea5e9;
+      --warning: #f59e0b;
+      --radius-sm: 8px;
+      --radius: 12px;
+      --radius-lg: 16px;
+      --shadow-sm: 0 1px 2px rgba(15, 23, 42, .04), 0 1px 3px rgba(15, 23, 42, .06);
+      --shadow: 0 4px 12px rgba(15, 23, 42, .06), 0 2px 4px rgba(15, 23, 42, .04);
+      --shadow-lg: 0 20px 40px -12px rgba(15, 23, 42, .15);
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font);
+      background: linear-gradient(135deg, #f5f7fb 0%, #eef1f7 100%);
+      min-height: 100vh;
+      padding: 32px 20px;
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card,
+    .header,
+    .config-panel,
+    .output-area {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .header {
+      background: linear-gradient(135deg, #ffffff 0%, #fafbff 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header h1 {
+      font-size: clamp(1.5rem, 2.5vw, 2rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .version-badge {
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+      letter-spacing: normal;
+    }
+
+    .header p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 20px;
+    }
+
+    .upload-area {
+      border: 2px dashed #cbd5e1;
+      border-radius: var(--radius);
+      padding: 40px 24px;
+      text-align: center;
+      background: var(--surface-2);
+      cursor: pointer;
+      transition: all .2s ease;
+    }
+
+    .upload-area:hover {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+      transform: translateY(-1px);
+    }
+
+    .upload-area.dragover {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, .25);
+    }
+
+    .upload-area p {
+      color: var(--text-soft);
+      font-weight: 500;
+    }
+
+    .config-section {
+      margin-bottom: 24px;
+    }
+
+    .config-section h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .table-name-row {
+      background: var(--surface-2);
+      padding: 16px;
+      border-radius: var(--radius);
+      margin-bottom: 24px;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .table-name-row label {
+      font-weight: 600;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .table-name-row input {
+      flex: 1;
+      min-width: 250px;
+      padding: 10px 14px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      font-family: var(--mono);
+      font-size: 0.875rem;
+      background: var(--surface);
+      transition: all .2s ease;
+    }
+
+    .table-name-row input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, .1);
+    }
+
+    .table-name-row input.error-input {
+      border-color: var(--danger);
+      background-color: #fef2f2;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      background: var(--surface);
+      transition: all .2s ease;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, .1);
+    }
+
+    .btn-xs {
+      background: var(--surface-3);
+      border: 1px solid var(--border-strong);
+      color: var(--text-soft);
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-weight: 500;
+      transition: all .15s ease;
+    }
+
+    .btn-xs:hover {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    .fields-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 8px;
+      max-height: 320px;
+      overflow-y: auto;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface-2);
+    }
+
+    .field-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      transition: background .15s ease;
+      cursor: pointer;
+    }
+
+    .field-checkbox:hover {
+      background: var(--surface-3);
+    }
+
+    .field-checkbox input {
+      cursor: pointer;
+      accent-color: var(--primary);
+      width: 16px;
+      height: 16px;
+    }
+
+    .field-checkbox label {
+      cursor: pointer;
+      font-size: 0.875rem;
+      color: var(--text-soft);
+      user-select: none;
+      flex: 1;
+    }
+
+    .field-checkbox .auto-badge {
+      color: var(--success);
+      font-size: 0.6rem;
+      font-weight: 600;
+      background: var(--primary-soft);
+      padding: 1px 8px;
+      border-radius: 10px;
+      margin-left: 4px;
+    }
+
+    .select-all {
+      margin-bottom: 10px;
+      padding: 10px 12px;
+      background: var(--primary-soft);
+      border: 1px solid #a7f3d0;
+      border-radius: var(--radius-sm);
+    }
+
+    .select-all label {
+      font-weight: 600;
+      color: var(--primary-hover);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.875rem;
+    }
+
+    .actions-container {
+      display: flex;
+      gap: 10px;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+
+    .btn-primary,
+    .btn-secondary,
+    .btn-success,
+    .btn-danger {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 20px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.875rem;
+      transition: all .2s ease;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow);
+    }
+
+    .btn-primary:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border-color: var(--border-strong);
+    }
+
+    .btn-secondary:hover {
+      background: var(--surface-3);
+      transform: translateY(-1px);
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+    }
+
+    .btn-success:hover {
+      background: #047857;
+      transform: translateY(-1px);
+    }
+
+    .btn-danger {
+      background: var(--surface);
+      color: var(--danger);
+      border-color: #fecaca;
+    }
+
+    .btn-danger:hover {
+      background: #fef2f2;
+      border-color: var(--danger);
+    }
+
+    .sql-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .sql-header .counter {
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      background: var(--surface-3);
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+
+    .sql-content {
+      background: #0b1020;
+      color: #e2e8f0;
+      padding: 18px;
+      border-radius: var(--radius);
+      font-family: var(--mono);
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      max-height: 500px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .status {
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 16px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status.success {
+      background: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+
+    .status.error {
+      background: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+
+    .status.info {
+      background: #eff6ff;
+      color: #1e40af;
+      border: 1px solid #bfdbfe;
+    }
+
+    .status.warning {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+
+    .table-info {
+      background: var(--surface-2);
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 16px;
+      font-size: 0.875rem;
+      color: var(--text-soft);
+      border: 1px solid var(--border);
+      display: none;
+    }
+
+    .auto-fields-info {
+      background: #fef3c7;
+      color: #92400e;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 16px;
+      font-size: 0.8125rem;
+      border-left: 3px solid #f59e0b;
+      display: none;
+    }
+
+    .option-toggle {
+      background: var(--surface-2);
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .option-toggle label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .option-toggle label input[type="checkbox"]:disabled+span {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .warning-message {
+      background: #fef2f2;
+      color: #dc2626;
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 16px;
+      border-left: 4px solid #dc2626;
+      font-size: 0.875rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .warning-message::before {
+      content: "⚠️";
+      font-size: 1.1rem;
+    }
+
+    .stats-panel {
+      background: var(--surface-2);
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 16px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      display: none;
+    }
+
+    .stats-panel span {
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .hidden-file-input {
+      display: none;
+    }
+
+    .empty-fields-message {
+      text-align: center;
+      padding: 30px 20px;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .empty-fields-message span {
+      font-size: 2rem;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    /* Modal de seleção de aba */
+    .sheet-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, .45);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      animation: fadeIn .2s ease;
+    }
+
+    .sheet-modal-overlay.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .sheet-modal {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      padding: 28px;
+      max-width: 480px;
+      width: 90%;
+      animation: slideUp .25s ease;
+    }
+
+    .sheet-modal h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sheet-modal p {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+    }
+
+    .sheet-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 300px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+    }
+
+    .sheet-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all .15s ease;
+      background: var(--surface);
+    }
+
+    .sheet-item:hover {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+    }
+
+    .sheet-item.selected {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, .15);
+    }
+
+    .sheet-item input[type="radio"] {
+      accent-color: var(--primary);
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    .sheet-item label {
+      cursor: pointer;
+      flex: 1;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .sheet-item .sheet-rows-badge {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      background: var(--surface-3);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .sheet-modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 16px 12px;
+      }
+
+      .table-name-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .table-name-row input {
+        min-width: auto;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>📊 Gerador de UPDATE SQL <span class="version-badge">v5.9.6</span></h1>
+      <p>Importe a planilha, selecione os campos para SET e WHERE, e gere comandos UPDATE automaticamente.</p>
+      <div class="upload-area" id="uploadArea">
+        <p>📁 Clique ou arraste um arquivo Excel (.xlsx, .xls) aqui</p>
+        <p style="font-size: 0.75rem; margin-top: 8px; color: #94a3b8;">Suporta arquivos .xlsx, .xls e .csv | Todas as
+          células são lidas como TEXTO</p>
+      </div>
+    </header>
+
+    <section class="config-panel">
+      <div class="table-info" id="tableInfo">📊 Aguardando upload da planilha...</div>
+      <div id="missingFieldsWarning" style="display: none;" class="warning-message"></div>
+      <div id="statsPanel" class="stats-panel"></div>
+
+      <div class="table-name-row">
+        <label>🗄️ Nome da Tabela:</label>
+        <input type="text" id="tableNameInput" placeholder="ex: produtos, clientes, vendas" value="produtos">
+        <span style="font-size: 0.75rem; color: var(--text-muted);">🔒 O nome será usado no comando UPDATE (não pode
+          ficar vazio)</span>
+      </div>
+
+      <div class="option-toggle">
+        <label>
+          <input type="checkbox" id="enableAutoFieldsToggle">
+          <span>🔄 Sincronizar CODCST_CLASSTRIB com CODCST_IBSCBS</span>
+          <span style="color: var(--text-muted); font-size: 0.75rem;">(ℹ️ Quando marcado, atualiza CODCST_CLASSTRIB com
+            o valor de CODCST_IBSCBS)</span>
+        </label>
+      </div>
+
+      <div class="config-section">
+        <h3>📝 Campos para SET (serão atualizados)</h3>
+        <div class="select-all" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <label><input type="checkbox" id="selectAllSet"> Selecionar todos para SET</label>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn-xs" id="deselectAllSetBtn">Desmarcar todos</button>
+            <button class="btn-xs" id="invertSetBtn">Inverter seleção</button>
+          </div>
+        </div>
+        <div style="margin-bottom: 8px;">
+          <input type="text" id="searchSetInput" placeholder="🔍 Filtrar campos SET..." class="search-input">
+        </div>
+        <div class="fields-grid" id="setFields"></div>
+      </div>
+
+      <div class="config-section">
+        <h3>🔍 Campos para WHERE (condição de filtro)</h3>
+        <div class="select-all" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <label><input type="checkbox" id="selectAllWhere"> Selecionar todos para WHERE</label>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn-xs" id="deselectAllWhereBtn">Desmarcar todos</button>
+            <button class="btn-xs" id="invertWhereBtn">Inverter seleção</button>
+          </div>
+        </div>
+        <div style="margin-bottom: 8px;">
+          <input type="text" id="searchWhereInput" placeholder="🔍 Filtrar campos WHERE..." class="search-input">
+        </div>
+        <div class="fields-grid" id="whereFields"></div>
+      </div>
+
+      <div class="actions-container">
+        <button class="btn-primary" id="generateBtn">🚀 Gerar UPDATE SQL</button>
+        <button class="btn-secondary" id="copyBtn">📋 Copiar SQLs</button>
+        <button class="btn-success" id="exportBtn">💾 Exportar SQLs</button>
+        <button class="btn-danger" id="clearBtn">🗑️ Limpar</button>
+      </div>
+
+      <div id="progressContainer" style="display: none; margin-top: 16px;">
+        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px; color: var(--text-muted);">
+          <span id="progressText">Gerando SQLs...</span>
+          <span id="progressPercent">0%</span>
+        </div>
+        <div style="background: var(--surface-3); height: 8px; border-radius: 4px; overflow: hidden;">
+          <div id="progressBar" style="background: var(--primary); height: 100%; width: 0%; transition: width 0.1s ease;"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="output-area">
+      <div class="sql-header">
+        <h3>📝 SQL Gerados</h3>
+        <span class="counter" id="sqlCounter">0 comandos gerados</span>
+      </div>
+      <div class="status info" id="statusMsg">⚡ Configure o nome da tabela, os campos e clique em "Gerar UPDATE SQL"
+      </div>
+      <pre class="sql-content" id="sqlOutput">-- Nenhum SQL gerado ainda --</pre>
+    </section>
+  </div>
+
+  <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display: none;">
+
+  <!-- Modal de seleção de aba -->
+  <div class="sheet-modal-overlay" id="sheetModalOverlay">
+    <div class="sheet-modal">
+      <h3>📑 Selecionar Aba da Planilha</h3>
+      <p>O arquivo possui múltiplas abas. Escolha qual aba deseja usar para gerar os UPDATEs:</p>
+      <div class="sheet-list" id="sheetList"></div>
+      <div class="sheet-modal-actions">
+        <button class="btn-secondary" id="sheetCancelBtn">Cancelar</button>
+        <button class="btn-primary" id="sheetConfirmBtn">✅ Usar esta aba</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================
+    // Gerador de UPDATE SQL - v5.9.6
+    // ============================================
+
+    let excelData = [];
+    let headers = [];
+    let currentTableName = 'produtos';
+    let generatedSQLs = [];
+    let isGenerating = false;
+    let originalFileName = '';
+    let currentWorkbook = null;
+    let currentFile = null;
+
+    let planilhaStats = {
+      totalRegistros: 0,
+      camposEncontrados: [],
+      temClasstrib: false,
+      temIbscbs: false,
+      temClasstribIbscbs: false,
+      camposAusentes: []
+    };
+
+    // ============================================
+    // MAPEAMENTO DE ALÍQUOTAS
+    // ============================================
+    const ALIQUOTAS_MAP = {
+      '000|000001': {
+        ALIQ_CBS: '0.9',
+        ALIQ_EFETIVA_CBS: '0.9',
+        REDUCAO_ALIQ_CBS: '0',
+        ALIQ_IBS_UF: '0.1',
+        ALIQ_EFETIVA_IBS_UF: '0.1',
+        REDUCAO_ALIQ_IBS_UF: '0',
+        ALIQ_IBS_MUN: '0',
+        ALIQ_EFETIVA_IBS_MUN: '0',
+        REDUCAO_ALIQ_IBS_MUN: '0'
+      },
+      '200|200047': {
+        ALIQ_CBS: '0.9',
+        ALIQ_EFETIVA_CBS: '0.54',
+        REDUCAO_ALIQ_CBS: '40',
+        ALIQ_IBS_UF: '0.1',
+        ALIQ_EFETIVA_IBS_UF: '0.06',
+        REDUCAO_ALIQ_IBS_UF: '40',
+        ALIQ_IBS_MUN: '0',
+        ALIQ_EFETIVA_IBS_MUN: '0',
+        REDUCAO_ALIQ_IBS_MUN: '40'
+      },
+      '410|410019': {
+        ALIQ_CBS: '0',
+        ALIQ_EFETIVA_CBS: '0',
+        REDUCAO_ALIQ_CBS: '0',
+        ALIQ_IBS_UF: '0',
+        ALIQ_EFETIVA_IBS_UF: '0',
+        REDUCAO_ALIQ_IBS_UF: '0',
+        ALIQ_IBS_MUN: '0',
+        ALIQ_EFETIVA_IBS_MUN: '0',
+        REDUCAO_ALIQ_IBS_MUN: '0',
+        CODNATOPERACAOSAI: '5102'
+      },
+      '410|410020': {
+        ALIQ_CBS: '0',
+        ALIQ_EFETIVA_CBS: '0',
+        REDUCAO_ALIQ_CBS: '0',
+        ALIQ_IBS_UF: '0.1',
+        ALIQ_EFETIVA_IBS_UF: '0.1',
+        REDUCAO_ALIQ_IBS_UF: '0',
+        ALIQ_IBS_MUN: '0',
+        ALIQ_EFETIVA_IBS_MUN: '0',
+        REDUCAO_ALIQ_IBS_MUN: '0'
+      },
+      '410|410999': {
+        ALIQ_CBS: '0',
+        ALIQ_EFETIVA_CBS: '0',
+        REDUCAO_ALIQ_CBS: '0',
+        ALIQ_IBS_UF: '0',
+        ALIQ_EFETIVA_IBS_UF: '0',
+        REDUCAO_ALIQ_IBS_UF: '0',
+        ALIQ_IBS_MUN: '0',
+        ALIQ_EFETIVA_IBS_MUN: '0',
+        REDUCAO_ALIQ_IBS_MUN: '0'
+      }
+    };
+
+    const CAMPOS_ALIQUOTA = [
+      'ALIQ_CBS',
+      'ALIQ_EFETIVA_CBS',
+      'REDUCAO_ALIQ_CBS',
+      'ALIQ_IBS_UF',
+      'ALIQ_EFETIVA_IBS_UF',
+      'REDUCAO_ALIQ_IBS_UF',
+      'ALIQ_IBS_MUN',
+      'ALIQ_IBS_MU',
+      'ALIQ_EFETIVA_IBS_MUN',
+      'ALIQ_EFETIVA_IBS_MU',
+      'REDUCAO_ALIQ_IBS_MUN',
+      'REDUCAO_ALIQ_IBS_MU'
+    ];
+
+    function ehCampoAliquota(nomeCampo) {
+      if (!nomeCampo) return false;
+      const upper = nomeCampo.toUpperCase();
+      return CAMPOS_ALIQUOTA.includes(upper);
+    }
+
+    function ehCampoSyncIbscbs(nomeCampo) {
+      if (!nomeCampo) return false;
+      const upper = nomeCampo.toUpperCase();
+      return ehAliasIbscbs(upper) || ehAliasClasstrib(upper) || ehCampoAliquota(upper);
+    }
+
+    function obterValorAliquota(aliquotasObj, nomeCampo) {
+      if (!aliquotasObj || !nomeCampo) return undefined;
+      const upper = nomeCampo.toUpperCase();
+      if (aliquotasObj[upper] !== undefined) return aliquotasObj[upper];
+
+      if (upper === 'REDUCAO_ALIQ_IBS_MU' && aliquotasObj['REDUCAO_ALIQ_IBS_MUN'] !== undefined) {
+        return aliquotasObj['REDUCAO_ALIQ_IBS_MUN'];
+      }
+      if (upper === 'ALIQ_IBS_MU' && aliquotasObj['ALIQ_IBS_MUN'] !== undefined) {
+        return aliquotasObj['ALIQ_IBS_MUN'];
+      }
+      if (upper === 'ALIQ_EFETIVA_IBS_MU' && aliquotasObj['ALIQ_EFETIVA_IBS_MUN'] !== undefined) {
+        return aliquotasObj['ALIQ_EFETIVA_IBS_MUN'];
+      }
+      return undefined;
+    }
+
+    // ============================================
+    // FUNÇÕES AUXILIARES E SANITIZAÇÃO
+    // ============================================
+    function cleanString(val) {
+      if (val === undefined || val === null) return '';
+      return String(val).replace(/[\u00A0\u1680\u180E\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, ' ').trim();
+    }
+
+    function formatarCST(codigo) {
+      if (codigo === undefined || codigo === null || codigo === '') return '';
+      let strCodigo = cleanString(codigo).replace(/^['"]|['"]$/g, '');
+      if (strCodigo === '') return '';
+      const mapeamentoCST = {
+        '0': '000', '00': '000', '000': '000',
+        '20': '020', '020': '020',
+        '40': '040', '040': '040',
+        '41': '041', '041': '041',
+        '60': '060', '060': '060'
+      };
+      if (mapeamentoCST[strCodigo]) return mapeamentoCST[strCodigo];
+      if (/^\d+$/.test(strCodigo)) {
+        if (strCodigo.length === 1) return '00' + strCodigo;
+        if (strCodigo.length === 2) return '0' + strCodigo;
+        if (strCodigo.length === 3) return strCodigo;
+        if (strCodigo.length > 3) return strCodigo.substring(0, 3);
+      }
+      return strCodigo;
+    }
+
+    function deveFormatarCST(nomeCampo) {
+      return nomeCampo === 'CST' || nomeCampo.toUpperCase() === 'CST';
+    }
+
+    const ALIASES_CODCST_IBSCBS = [
+      'CODCST_IBSCBS',
+      'CODCST_IBS_CBS',
+      'CODCSTIBSCBS',
+      'CODCST_IBS',
+      'CST_IBSCBS',
+      'CST_IBS_CBS',
+      'CST_IBS',
+      'CSTIBSCBS',
+      'IBSCBS',
+      'IBS_CBS'
+    ];
+
+    const ALIASES_CODCST_CLASSTRIB = [
+      'CODCST_CLASSTRIB',
+      'CODCST_CLASSTRIB_IBSCBS',
+      'CODCST_CLASSTRIB_IBS_CBS',
+      'CODCST_CLASS_TRIB',
+      'CODCST_CLASSTRIB_IBS',
+      'COD_CLASSTRIB',
+      'CLASSTRIB_IBSCBS',
+      'CLASSTRIB_IBS_CBS',
+      'CLASSTRIB',
+      'CODCLASSTRIB',
+      'CLASS_TRIB',
+      'CLASSTRIB_IBS'
+    ];
+
+    function ehAliasIbscbs(nomeCampo) {
+      if (!nomeCampo) return false;
+      return ALIASES_CODCST_IBSCBS.includes(nomeCampo.toUpperCase());
+    }
+
+    function ehAliasClasstrib(nomeCampo) {
+      if (!nomeCampo) return false;
+      return ALIASES_CODCST_CLASSTRIB.includes(nomeCampo.toUpperCase());
+    }
+
+    function campoExisteNaPlanilha(nomeCampo) {
+      if (!nomeCampo) return false;
+      const upper = nomeCampo.toUpperCase();
+      if (headers.some(h => h.toUpperCase() === upper)) return true;
+      if (ehAliasIbscbs(upper)) return headers.some(h => ehAliasIbscbs(h));
+      if (ehAliasClasstrib(upper)) return headers.some(h => ehAliasClasstrib(h));
+      return false;
+    }
+
+    function normalizarValorCodcst(nomeCampo, valor) {
+      if (valor === undefined || valor === null || valor === '') return valor;
+      const campo = nomeCampo.toUpperCase();
+      let tamanho = 0;
+      if (ehAliasIbscbs(campo)) tamanho = 3;
+      else if (ehAliasClasstrib(campo)) tamanho = 6;
+      if (tamanho === 0) return valor;
+      let str = cleanString(valor).replace(/^['"]|['"]$/g, '');
+      if (/^\d+\.0+$/.test(str)) str = str.replace(/\.0+$/, '');
+      if (/^\d+$/.test(str)) return str.padStart(tamanho, '0');
+      return str;
+    }
+
+    function getValorCampo(row, campoNome) {
+      if (!campoNome) return undefined;
+      const upper = campoNome.toUpperCase();
+
+      let colIndex = headers.findIndex(h => h.toUpperCase() === upper);
+
+      if (colIndex === -1) {
+        if (ehAliasIbscbs(upper)) {
+          colIndex = headers.findIndex(h => ehAliasIbscbs(h));
+        } else if (ehAliasClasstrib(upper)) {
+          colIndex = headers.findIndex(h => ehAliasClasstrib(h));
+        }
+      }
+
+      if (colIndex === -1) return undefined;
+      let value = row[colIndex];
+      if (value !== undefined && value !== null && String(value).trim() !== '') {
+        return normalizarValorCodcst(campoNome, String(value).trim());
+      }
+      return undefined;
+    }
+
+    function getAliquotasPorCombinacao(ibscbs, classtrib) {
+      const ibs = normalizarValorCodcst('CODCST_IBSCBS', ibscbs) || '';
+      const cls = normalizarValorCodcst('CODCST_CLASSTRIB_IBSCBS', classtrib) || '';
+      const key = `${ibs}|${cls}`;
+      if (ALIQUOTAS_MAP[key]) {
+        return ALIQUOTAS_MAP[key];
+      }
+      return null;
+    }
+
+    function formatValue(value) {
+      if (value === undefined || value === null || value === '') return 'NULL';
+      let strValue = cleanString(value);
+      if (strValue === '') return 'NULL';
+      return `'${strValue.replace(/'/g, "''")}'`;
+    }
+
+    function escapeIdentifier(identifier) {
+      if (!identifier) return '';
+      if (/[^a-zA-Z0-9_]/.test(identifier)) {
+        return `"${identifier.replace(/"/g, '""')}"`;
+      }
+      return identifier;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // ============================================
+    // ANÁLISE DA PLANILHA
+    // ============================================
+    function analisarPlanilha() {
+      planilhaStats.totalRegistros = excelData.length;
+      planilhaStats.camposEncontrados = [...headers];
+      planilhaStats.temIbscbs = headers.some(h => ehAliasIbscbs(h));
+      planilhaStats.temClasstrib = headers.some(h => ehAliasClasstrib(h));
+      planilhaStats.temClasstribIbscbs = headers.some(h => h.toUpperCase() === 'CODCST_CLASSTRIB_IBSCBS' || h.toUpperCase() === 'CODCST_CLASSTRIB_IBS_CBS');
+      planilhaStats.camposAusentes = CAMPOS_ALIQUOTA.filter(campo => !campoExisteNaPlanilha(campo));
+
+      const nomeIbscbs = headers.find(h => ehAliasIbscbs(h)) || 'CODCST_IBSCBS';
+      const nomeClasstrib = headers.find(h => ehAliasClasstrib(h)) || 'CODCST_CLASSTRIB';
+
+      const statsPanel = document.getElementById('statsPanel');
+      statsPanel.style.display = 'block';
+      statsPanel.innerHTML = `
+      📊 <strong>Análise da planilha:</strong><br>
+      • Total de registros: <span>${planilhaStats.totalRegistros}</span><br>
+      • Campos encontrados: <span>${planilhaStats.camposEncontrados.length}</span><br>
+      • CST IBSCBS presente: <span>${planilhaStats.temIbscbs ? `✅ Sim (${escapeHtml(nomeIbscbs)})` : '❌ Não'}</span><br>
+      • CLASSTRIB presente: <span>${planilhaStats.temClasstrib ? `✅ Sim (${escapeHtml(nomeClasstrib)})` : '❌ Não'}</span><br>
+      ${planilhaStats.camposAusentes.length > 0 ? `• Campos de alíquota não presentes na planilha (não serão incluídos): <span style="color: #64748b;">${planilhaStats.camposAusentes.length}</span>` : '• Todos os campos de alíquota estão presentes ✅'}
+    `;
+
+      const syncToggle = document.getElementById('enableAutoFieldsToggle');
+      if (planilhaStats.temIbscbs) {
+        syncToggle.disabled = false;
+      } else {
+        syncToggle.disabled = true;
+        syncToggle.checked = false;
+      }
+    }
+
+    // ============================================
+    // RENDERIZAÇÃO DOS CAMPOS
+    // ============================================
+    function renderFieldSelectors() {
+      const syncEnabled = document.getElementById('enableAutoFieldsToggle').checked;
+
+      setFieldsDiv.innerHTML = '';
+      if (headers.length === 0) {
+        setFieldsDiv.innerHTML = `
+        <div class="empty-fields-message">
+          <span>📂</span>
+          Nenhum campo disponível<br>
+          <small style="color: #94a3b8;">Carregue a planilha para ver os campos</small>
+        </div>
+      `;
+        return;
+      }
+
+      headers.forEach(header => {
+        const div = document.createElement('div');
+        div.className = 'field-checkbox';
+        let labelHtml = escapeHtml(header);
+
+        if (syncEnabled && ehCampoAliquota(header)) {
+          labelHtml += ` <span class="auto-badge">auto</span>`;
+        }
+
+        div.innerHTML = `
+        <input type="checkbox" class="set-checkbox" value="${escapeHtml(header)}" id="set_${escapeHtml(header)}">
+        <label for="set_${escapeHtml(header)}">${labelHtml}</label>
+      `;
+        setFieldsDiv.appendChild(div);
+      });
+
+      whereFieldsDiv.innerHTML = '';
+      headers.forEach(header => {
+        const div = document.createElement('div');
+        div.className = 'field-checkbox';
+        div.innerHTML = `
+        <input type="checkbox" class="where-checkbox" value="${escapeHtml(header)}" id="where_${escapeHtml(header)}">
+        <label for="where_${escapeHtml(header)}">${escapeHtml(header)}</label>
+      `;
+        whereFieldsDiv.appendChild(div);
+      });
+
+      const EXCLUDED_SET_FIELDS = ['CODEMP', 'CAT_COD', 'CAT_DESCR', 'PROD_COD', 'PROD_DESCR'];
+      const defaultWhereFields = ['CODEMP', 'CAT_COD', 'PROD_COD'];
+
+      document.querySelectorAll('.where-checkbox').forEach(cb => {
+        cb.checked = defaultWhereFields.includes(cb.value.toUpperCase());
+      });
+
+      if (syncEnabled) {
+        document.querySelectorAll('.set-checkbox').forEach(cb => {
+          cb.checked = ehCampoSyncIbscbs(cb.value);
+        });
+      } else {
+        document.querySelectorAll('.set-checkbox').forEach(cb => {
+          cb.checked = !EXCLUDED_SET_FIELDS.includes(cb.value.toUpperCase());
+        });
+      }
+
+      updateSelectAllStates();
+      filterFields('setFields', 'searchSetInput');
+      filterFields('whereFields', 'searchWhereInput');
+    }
+
+    function updateSelectAllStates() {
+      const EXCLUDED_SET_FIELDS = ['CODEMP', 'CAT_COD', 'CAT_DESCR', 'PROD_COD', 'PROD_DESCR'];
+      const setCheckboxes = Array.from(document.querySelectorAll('.set-checkbox'));
+      const whereCheckboxes = Array.from(document.querySelectorAll('.where-checkbox'));
+
+      const eligibleSetCheckboxes = setCheckboxes.filter(cb => !EXCLUDED_SET_FIELDS.includes(cb.value.toUpperCase()));
+      if (eligibleSetCheckboxes.length) {
+        selectAllSet.checked = eligibleSetCheckboxes.every(cb => cb.checked);
+      }
+      if (whereCheckboxes.length) {
+        selectAllWhere.checked = whereCheckboxes.every(cb => cb.checked);
+      }
+    }
+
+    function filterFields(gridId, searchInputId) {
+      const input = document.getElementById(searchInputId);
+      const grid = document.getElementById(gridId);
+      if (!input || !grid) return;
+      const term = input.value.trim().toLowerCase();
+      const items = grid.querySelectorAll('.field-checkbox');
+      items.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        if (!term || text.includes(term)) {
+          item.style.display = 'flex';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    }
+
+    function getSelectedSetFields() {
+      const selected = [];
+      document.querySelectorAll('.set-checkbox:checked').forEach(cb => selected.push(cb.value));
+      return selected;
+    }
+
+    function getSelectedWhereFields() {
+      const selected = [];
+      document.querySelectorAll('.where-checkbox:checked').forEach(cb => selected.push(cb.value));
+      return selected;
+    }
+
+    // ============================================
+    // PROCESSAMENTO DO ARQUIVO
+    // ============================================
+    function processFile(file) {
+      console.log('Processando arquivo:', file.name);
+      showStatus('info', '📂 Processando arquivo...');
+      currentFile = file;
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          currentWorkbook = XLSX.read(data, { type: 'array' });
+          const sheetNames = currentWorkbook.SheetNames;
+
+          if (sheetNames.length === 0) {
+            showStatus('error', '❌ Nenhuma aba encontrada no arquivo.');
+            return;
+          }
+
+          if (sheetNames.length === 1) {
+            processSheet(sheetNames[0]);
+            return;
+          }
+
+          showSheetSelector(sheetNames);
+
+        } catch (error) {
+          console.error('Erro:', error);
+          showStatus('error', '❌ Erro ao processar o arquivo.');
+        }
+      };
+
+      reader.onerror = function () {
+        showStatus('error', '❌ Erro ao ler o arquivo');
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+
+    function showSheetSelector(sheetNames) {
+      const sheetList = document.getElementById('sheetList');
+      sheetList.innerHTML = '';
+
+      sheetNames.forEach((name, index) => {
+        const sheet = currentWorkbook.Sheets[name];
+        const jsonPreview = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+        const rowCount = Math.max(0, jsonPreview.length - 1);
+
+        const item = document.createElement('div');
+        item.className = `sheet-item${index === 0 ? ' selected' : ''}`;
+        item.innerHTML = `
+          <input type="radio" name="sheetSelect" value="${escapeHtml(name)}" id="sheet_${index}" ${index === 0 ? 'checked' : ''}>
+          <label for="sheet_${index}">📄 ${escapeHtml(name)}</label>
+          <span class="sheet-rows-badge">${rowCount} registro${rowCount !== 1 ? 's' : ''}</span>
+        `;
+
+        item.addEventListener('click', () => {
+          sheetList.querySelectorAll('.sheet-item').forEach(el => el.classList.remove('selected'));
+          item.classList.add('selected');
+          item.querySelector('input[type="radio"]').checked = true;
+        });
+
+        sheetList.appendChild(item);
+      });
+
+      document.getElementById('sheetModalOverlay').classList.add('active');
+      showStatus('info', `📑 Arquivo possui ${sheetNames.length} abas. Selecione qual deseja usar.`);
+    }
+
+    function processSheet(sheetName) {
+      try {
+        document.getElementById('sheetModalOverlay').classList.remove('active');
+
+        const sheet = currentWorkbook.Sheets[sheetName];
+        if (!sheet) {
+          showStatus('error', `❌ Aba "${sheetName}" não encontrada.`);
+          return;
+        }
+
+        const jsonData = XLSX.utils.sheet_to_json(sheet, {
+          header: 1,
+          defval: '',
+          raw: false
+        });
+
+        if (jsonData.length < 2) {
+          showStatus('error', 'A planilha precisa ter pelo menos cabeçalho e uma linha de dados');
+          return;
+        }
+
+        let rawHeaders = jsonData[0].map(h => String(h || '').trim());
+        const dataRows = jsonData.slice(1);
+
+        const primeiroCabecalhoVazio = rawHeaders.length > 0 && rawHeaders[0] === '';
+        const temDadosPrimeiraColuna = dataRows.some(r => r[0] !== undefined && r[0] !== null && String(r[0]).trim() !== '');
+        const segundoEhCampoConhecido = rawHeaders.slice(1).some(h => {
+          const u = h.toUpperCase();
+          return ['CODEMP', 'CAT_COD', 'PROD_COD', 'CAT_DESCR', 'PROD_DESCR', 'ALIQUOTA', 'CST', 'NCM'].includes(u);
+        });
+
+        let realinhouCabecalho = false;
+        if (primeiroCabecalhoVazio && temDadosPrimeiraColuna && segundoEhCampoConhecido) {
+          console.warn('⚠️ Detectado A1 em branco e cabeçalhos deslocados. Realinhando automaticamente...');
+          rawHeaders.shift();
+          realinhouCabecalho = true;
+        }
+
+        const validRawHeaders = rawHeaders.filter(h => h !== '');
+
+        const headerMap = {};
+        headers = [];
+        validRawHeaders.forEach(h => {
+          if (!headerMap[h.toUpperCase()]) {
+            headerMap[h.toUpperCase()] = true;
+            headers.push(h);
+          }
+        });
+
+        excelData = [];
+        for (let i = 1; i < jsonData.length; i++) {
+          const row = jsonData[i];
+          const hasData = row.some(cell => cell !== undefined && cell !== null && String(cell).trim() !== '');
+          if (hasData) {
+            const processedRow = [];
+            for (let j = 0; j < headers.length; j++) {
+              let colIndex = rawHeaders.findIndex(h => h.toUpperCase() === headers[j].toUpperCase());
+              if (colIndex === -1) {
+                processedRow.push('');
+              } else {
+                let value = row[colIndex];
+                processedRow.push(value !== undefined && value !== null ? cleanString(value) : '');
+              }
+            }
+            excelData.push(processedRow);
+          }
+        }
+
+        if (headers.length === 0) {
+          showStatus('error', 'Nenhum cabeçalho encontrado na planilha');
+          return;
+        }
+
+        if (realinhouCabecalho) {
+          showStatus('warning', '⚡ A célula A1 da planilha estava em branco. Os cabeçalhos foram realinhados automaticamente com a 1ª coluna de dados!');
+        }
+
+        if (originalFileName) {
+          const suggestedName = originalFileName.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
+          if (suggestedName) {
+            tableNameInput.value = suggestedName;
+            currentTableName = suggestedName;
+          }
+        }
+
+        const sheetLabel = currentWorkbook.SheetNames.length > 1 ? ` | Aba: <strong>${escapeHtml(sheetName)}</strong>` : '';
+        tableInfoDiv.innerHTML = `📊 Arquivo: <strong>${escapeHtml(currentFile.name)}</strong>${sheetLabel} | ${excelData.length} registros | ${headers.length} campos<br><span style="font-size:0.75rem;">✅ Todas as células foram lidas como TEXTO</span>`;
+        tableInfoDiv.style.display = 'block';
+
+        analisarPlanilha();
+        renderFieldSelectors();
+
+        showStatus('success', `✅ Arquivo carregado! Aba "${sheetName}" — ${excelData.length} registros encontrados.`);
+        generatedSQLs = [];
+        sqlOutput.innerHTML = '-- Nenhum SQL gerado ainda --';
+        sqlCounter.textContent = '0 comandos gerados';
+
+      } catch (error) {
+        console.error('Erro:', error);
+        showStatus('error', '❌ Erro ao processar a aba.');
+      }
+    }
+
+    // ============================================
+    // GERAÇÃO DE SQL (ASSÍNCRONA EM LOTES)
+    // ============================================
+    async function generateSQL() {
+      if (isGenerating) {
+        showStatus('warning', '⏳ Aguarde, já está gerando...');
+        return;
+      }
+
+      const nomeTabela = tableNameInput.value.trim();
+      if (nomeTabela === '') {
+        showStatus('error', '❌ O nome da tabela não pode estar vazio.');
+        tableNameInput.classList.add('error-input');
+        tableNameInput.focus();
+        return;
+      }
+
+      currentTableName = nomeTabela;
+      tableNameInput.classList.remove('error-input');
+
+      const whereFields = getSelectedWhereFields();
+      let setFields = getSelectedSetFields();
+
+      if (whereFields.length === 0) {
+        showStatus('error', '❌ Selecione pelo menos um campo para o WHERE');
+        return;
+      }
+
+      if (excelData.length === 0) {
+        showStatus('error', '❌ Nenhum dado encontrado.');
+        return;
+      }
+
+      const camposInexistentes = [];
+      for (const field of [...setFields, ...whereFields]) {
+        if (!campoExisteNaPlanilha(field)) {
+          camposInexistentes.push(field);
+        }
+      }
+
+      if (camposInexistentes.length > 0) {
+        showStatus('error', `❌ Campos NÃO existem na planilha: ${camposInexistentes.join(', ')}`);
+        return;
+      }
+
+      const syncEnabled = document.getElementById('enableAutoFieldsToggle').checked;
+      const temIbscbs = planilhaStats.temIbscbs;
+
+      isGenerating = true;
+      generateBtn.disabled = true;
+      generateBtn.innerHTML = '⏳ Gerando SQLs...';
+
+      const progressContainer = document.getElementById('progressContainer');
+      const progressBar = document.getElementById('progressBar');
+      const progressText = document.getElementById('progressText');
+      const progressPercent = document.getElementById('progressPercent');
+
+      progressContainer.style.display = 'block';
+      progressBar.style.width = '0%';
+      progressText.textContent = `Gerando SQLs... (0/${excelData.length})`;
+      progressPercent.textContent = '0%';
+
+      try {
+        const sqlCommands = [];
+        let cstFormatCount = 0;
+        let syncCount = 0;
+        let autoFillCount = 0;
+        let registrosIgnorados = 0;
+
+        const totalRows = excelData.length;
+        const chunkSize = 500;
+
+        for (let i = 0; i < totalRows; i += chunkSize) {
+          const limit = Math.min(i + chunkSize, totalRows);
+
+          for (let j = i; j < limit; j++) {
+            const row = excelData[j];
+            const setClauses = [];
+            const whereClauses = [];
+            const processedFields = new Set();
+            let hasAutoFill = false;
+
+            const ibscbsSync = getValorCampo(row, 'CODCST_IBSCBS');
+            const valorClasstribIbscbs = getValorCampo(row, 'CODCST_CLASSTRIB_IBSCBS');
+            const classtribSync = syncEnabled
+              ? (valorClasstribIbscbs || getValorCampo(row, 'CODCST_CLASSTRIB'))
+              : (getValorCampo(row, 'CODCST_CLASSTRIB') || valorClasstribIbscbs);
+            const aliquotasSync = (ibscbsSync && classtribSync)
+              ? getAliquotasPorCombinacao(ibscbsSync, classtribSync)
+              : null;
+
+            for (const field of setFields) {
+              const fieldUpper = field.toUpperCase();
+              if (processedFields.has(fieldUpper)) continue;
+
+              let valorFinal = campoExisteNaPlanilha(field) ? getValorCampo(row, field) : undefined;
+
+              if (fieldUpper === 'CODCST_CLASSTRIB') {
+                if (syncEnabled) {
+                  valorFinal = valorClasstribIbscbs || valorFinal;
+                } else if (valorFinal === undefined || valorFinal === '') {
+                  if (valorClasstribIbscbs) valorFinal = valorClasstribIbscbs;
+                }
+              }
+              if (fieldUpper === 'CODCST_CLASSTRIB_IBSCBS') {
+                if (syncEnabled) {
+                  valorFinal = classtribSync || valorFinal;
+                } else if (valorFinal === undefined || valorFinal === '') {
+                  valorFinal = getValorCampo(row, 'CODCST_CLASSTRIB') || valorClasstribIbscbs;
+                }
+              }
+
+              if (syncEnabled && aliquotasSync) {
+                const valMap = obterValorAliquota(aliquotasSync, fieldUpper);
+                if (valMap !== undefined) {
+                  valorFinal = valMap;
+                  hasAutoFill = true;
+                }
+              } else if (!syncEnabled && (valorFinal === undefined || valorFinal === '') && aliquotasSync) {
+                const valMap = obterValorAliquota(aliquotasSync, fieldUpper);
+                if (valMap !== undefined) {
+                  valorFinal = valMap;
+                }
+              }
+
+              if (valorFinal !== undefined && valorFinal !== null && valorFinal !== '') {
+                if (deveFormatarCST(field)) {
+                  const originalValue = valorFinal;
+                  valorFinal = formatarCST(valorFinal);
+                  if (originalValue !== valorFinal && originalValue !== '') {
+                    cstFormatCount++;
+                  }
+                }
+                setClauses.push(`${escapeIdentifier(field)} = ${formatValue(valorFinal)}`);
+                processedFields.add(fieldUpper);
+              }
+            }
+
+            if (!syncEnabled) {
+              const rawClasstrib = getValorCampo(row, 'CODCST_CLASSTRIB');
+              const rawAlias = valorClasstribIbscbs;
+              const valorCanonical = rawClasstrib || rawAlias || null;
+
+              const temClasstrib = campoExisteNaPlanilha('CODCST_CLASSTRIB');
+              const temAlias = campoExisteNaPlanilha('CODCST_CLASSTRIB_IBSCBS');
+              const classtribSet = processedFields.has('CODCST_CLASSTRIB');
+              const aliasSet = processedFields.has('CODCST_CLASSTRIB_IBSCBS');
+
+              if (temAlias && classtribSet && !aliasSet && valorCanonical) {
+                setClauses.push(`${escapeIdentifier('CODCST_CLASSTRIB_IBSCBS')} = ${formatValue(valorCanonical)}`);
+                processedFields.add('CODCST_CLASSTRIB_IBSCBS');
+              }
+
+              if (temClasstrib && aliasSet && !classtribSet && valorCanonical) {
+                setClauses.push(`${escapeIdentifier('CODCST_CLASSTRIB')} = ${formatValue(valorCanonical)}`);
+                processedFields.add('CODCST_CLASSTRIB');
+                syncCount++;
+              }
+            }
+
+            if (syncEnabled) {
+              const valorSincronizado = valorClasstribIbscbs || getValorCampo(row, 'CODCST_CLASSTRIB');
+              if (valorSincronizado) {
+                if (campoExisteNaPlanilha('CODCST_CLASSTRIB')) {
+                  const idCT = escapeIdentifier('CODCST_CLASSTRIB');
+                  if (!processedFields.has('CODCST_CLASSTRIB')) {
+                    setClauses.push(`${idCT} = ${formatValue(valorSincronizado)}`);
+                    processedFields.add('CODCST_CLASSTRIB');
+                    syncCount++;
+                  } else {
+                    const idx = setClauses.findIndex(c => c.startsWith(idCT + ' =') || c.startsWith('CODCST_CLASSTRIB ='));
+                    if (idx !== -1) {
+                      setClauses[idx] = `${idCT} = ${formatValue(valorSincronizado)}`;
+                      syncCount++;
+                    }
+                  }
+                }
+
+                if (campoExisteNaPlanilha('CODCST_CLASSTRIB_IBSCBS')) {
+                  const idAlias = escapeIdentifier('CODCST_CLASSTRIB_IBSCBS');
+                  if (!processedFields.has('CODCST_CLASSTRIB_IBSCBS')) {
+                    setClauses.push(`${idAlias} = ${formatValue(valorSincronizado)}`);
+                    processedFields.add('CODCST_CLASSTRIB_IBSCBS');
+                  } else {
+                    const idx = setClauses.findIndex(c => c.startsWith(idAlias + ' =') || c.startsWith('CODCST_CLASSTRIB_IBSCBS ='));
+                    if (idx !== -1) {
+                      setClauses[idx] = `${idAlias} = ${formatValue(valorSincronizado)}`;
+                    }
+                  }
+                }
+              }
+            }
+
+            if (syncEnabled && aliquotasSync) {
+              headers.forEach(header => {
+                if (!campoExisteNaPlanilha(header)) return;
+                const headerUpper = header.toUpperCase();
+                if (ehCampoAliquota(headerUpper)) {
+                  const valMap = obterValorAliquota(aliquotasSync, headerUpper);
+                  if (valMap !== undefined) {
+                    if (processedFields.has(headerUpper)) {
+                      const id = escapeIdentifier(header);
+                      const idx = setClauses.findIndex(c => c.startsWith(id + ' =') || c.startsWith(header + ' ='));
+                      if (idx !== -1) {
+                        setClauses[idx] = `${id} = ${formatValue(valMap)}`;
+                      }
+                    } else {
+                      setClauses.push(`${escapeIdentifier(header)} = ${formatValue(valMap)}`);
+                      processedFields.add(headerUpper);
+                      autoFillCount++;
+                    }
+                  }
+                }
+              });
+            }
+
+            for (const field of whereFields) {
+              if (!campoExisteNaPlanilha(field)) continue;
+              let valorFinal = getValorCampo(row, field);
+              if (valorFinal !== undefined && valorFinal !== null && valorFinal !== '') {
+                if (deveFormatarCST(field)) {
+                  valorFinal = formatarCST(valorFinal);
+                }
+                whereClauses.push(`${escapeIdentifier(field)} = ${formatValue(valorFinal)}`);
+              }
+            }
+
+            if (setClauses.length > 0 && whereClauses.length > 0) {
+              sqlCommands.push(`UPDATE ${escapeIdentifier(currentTableName)} SET ${setClauses.join(', ')} WHERE ${whereClauses.join(' AND ')};`);
+              if (hasAutoFill) autoFillCount++;
+            } else {
+              registrosIgnorados++;
+            }
+          }
+
+          const pct = Math.round((limit / totalRows) * 100);
+          progressBar.style.width = pct + '%';
+          progressText.textContent = `Gerando SQLs... (${limit}/${totalRows})`;
+          progressPercent.textContent = pct + '%';
+
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+
+        if (sqlCommands.length === 0) {
+          showStatus('error', '❌ Nenhum SQL foi gerado.');
+          return;
+        }
+
+        generatedSQLs = sqlCommands;
+
+        const maxPreviewLines = 200;
+        if (sqlCommands.length <= maxPreviewLines) {
+          sqlOutput.innerHTML = escapeHtml(sqlCommands.join('\n\n'));
+        } else {
+          const previewPart = sqlCommands.slice(0, maxPreviewLines).join('\n\n');
+          const remainingCount = sqlCommands.length - maxPreviewLines;
+          sqlOutput.innerHTML = escapeHtml(previewPart) + `\n\n-- ℹ️ ... [Mais ${remainingCount} comandos omitidos da prévia de tela para melhor performance].\n-- 📋 Clique em "Copiar SQLs" ou 💾 "Exportar SQLs" para obter todos os ${sqlCommands.length} comandos completos.`;
+        }
+
+        sqlCounter.textContent = `${sqlCommands.length} comandos gerados`;
+
+        let formatMsg = '';
+        if (cstFormatCount > 0) formatMsg += ` 🔧 ${cstFormatCount} CST(s) formatados.`;
+        if (syncCount > 0) formatMsg += ` 📌 ${syncCount} registro(s) sincronizados.`;
+        if (autoFillCount > 0) formatMsg += ` 📌 ${autoFillCount} registro(s) com auto-fill.`;
+        if (registrosIgnorados > 0) formatMsg += ` ⚠️ ${registrosIgnorados} ignorados.`;
+
+        showStatus('success', `✅ ${sqlCommands.length} UPDATE gerados!${formatMsg}`);
+
+      } catch (error) {
+        console.error('Erro:', error);
+        showStatus('error', '❌ Erro ao gerar SQLs: ' + error.message);
+      } finally {
+        isGenerating = false;
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '🚀 Gerar UPDATE SQL';
+        setTimeout(() => {
+          progressContainer.style.display = 'none';
+        }, 1200);
+      }
+    }
+
+    // ============================================
+    // FUNÇÕES DE UTILIDADE E EVENTOS
+    // ============================================
+    function copySQLs() {
+      if (generatedSQLs.length === 0) {
+        showStatus('error', '❌ Nenhum SQL gerado para copiar');
+        return;
+      }
+      navigator.clipboard.writeText(generatedSQLs.join('\n\n')).then(() => {
+        showStatus('success', '📋 SQLs copiados!');
+      }).catch(() => {
+        showStatus('error', '❌ Erro ao copiar SQLs');
+      });
+    }
+
+    function exportSQLs() {
+      if (generatedSQLs.length === 0) {
+        showStatus('error', '❌ Nenhum SQL gerado para exportar');
+        return;
+      }
+      let baseFileName = originalFileName || currentTableName;
+      baseFileName = baseFileName.replace(/[^a-zA-Z0-9_\-]/g, '_');
+      const blob = new Blob([generatedSQLs.join('\n\n')], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${baseFileName}_update.sql`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showStatus('success', '💾 SQLs exportados!');
+    }
+
+    function clearAll() {
+      generatedSQLs = [];
+      sqlOutput.innerHTML = '-- Nenhum SQL gerado ainda --';
+      sqlCounter.textContent = '0 comandos gerados';
+      enableAutoFieldsToggle.checked = false;
+      document.getElementById('searchSetInput').value = '';
+      document.getElementById('searchWhereInput').value = '';
+      const autoFieldsInfoEl = document.getElementById('autoFieldsInfo');
+      if (autoFieldsInfoEl) autoFieldsInfoEl.style.display = 'none';
+      document.getElementById('sheetModalOverlay').classList.remove('active');
+      if (originalFileName) {
+        tableNameInput.value = originalFileName.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
+      } else {
+        tableNameInput.value = 'produtos';
+      }
+      currentTableName = tableNameInput.value;
+      tableNameInput.classList.remove('error-input');
+      if (headers.length > 0) {
+        renderFieldSelectors();
+      }
+      showStatus('info', '🔄 Configurações resetadas.');
+    }
+
+    function showStatus(type, message) {
+      statusDiv.className = `status ${type}`;
+      statusDiv.innerHTML = message;
+    }
+
+    // ============================================
+    // REGISTRO DE EVENTOS
+    // ============================================
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const tableInfoDiv = document.getElementById('tableInfo');
+    const enableAutoFieldsToggle = document.getElementById('enableAutoFieldsToggle');
+    const setFieldsDiv = document.getElementById('setFields');
+    const whereFieldsDiv = document.getElementById('whereFields');
+    const generateBtn = document.getElementById('generateBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const sqlOutput = document.getElementById('sqlOutput');
+    const sqlCounter = document.getElementById('sqlCounter');
+    const statusDiv = document.getElementById('statusMsg');
+    const selectAllSet = document.getElementById('selectAllSet');
+    const selectAllWhere = document.getElementById('selectAllWhere');
+    const tableNameInput = document.getElementById('tableNameInput');
+
+    uploadArea.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        const file = e.target.files[0];
+        originalFileName = file.name.replace(/\.(xlsx|xls|csv)$/i, '');
+        processFile(file);
+        fileInput.value = '';
+      }
+    });
+
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+        const file = files[0];
+        if (file.name.match(/\.(xlsx|xls|csv)$/i)) {
+          originalFileName = file.name.replace(/\.(xlsx|xls|csv)$/i, '');
+          processFile(file);
+        } else {
+          showStatus('error', '❌ Selecione um arquivo Excel ou CSV');
+        }
+      }
+    });
+
+    document.body.addEventListener('dragover', (e) => e.preventDefault());
+    document.body.addEventListener('drop', (e) => e.preventDefault());
+
+    selectAllSet.addEventListener('change', (e) => {
+      const EXCLUDED_SET_FIELDS = ['CODEMP', 'CAT_COD', 'CAT_DESCR', 'PROD_COD', 'PROD_DESCR'];
+      document.querySelectorAll('.set-checkbox').forEach(cb => {
+        if (EXCLUDED_SET_FIELDS.includes(cb.value.toUpperCase())) {
+          cb.checked = false;
+        } else {
+          cb.checked = e.target.checked;
+        }
+      });
+    });
+
+    selectAllWhere.addEventListener('change', (e) => {
+      document.querySelectorAll('.where-checkbox').forEach(cb => cb.checked = e.target.checked);
+    });
+
+    document.getElementById('searchSetInput').addEventListener('input', () => filterFields('setFields', 'searchSetInput'));
+    document.getElementById('searchWhereInput').addEventListener('input', () => filterFields('whereFields', 'searchWhereInput'));
+
+    document.getElementById('deselectAllSetBtn').addEventListener('click', () => {
+      document.querySelectorAll('.set-checkbox').forEach(cb => cb.checked = false);
+      selectAllSet.checked = false;
+    });
+
+    document.getElementById('invertSetBtn').addEventListener('click', () => {
+      document.querySelectorAll('.set-checkbox').forEach(cb => cb.checked = !cb.checked);
+      updateSelectAllStates();
+    });
+
+    document.getElementById('deselectAllWhereBtn').addEventListener('click', () => {
+      document.querySelectorAll('.where-checkbox').forEach(cb => cb.checked = false);
+      selectAllWhere.checked = false;
+    });
+
+    document.getElementById('invertWhereBtn').addEventListener('click', () => {
+      document.querySelectorAll('.where-checkbox').forEach(cb => cb.checked = !cb.checked);
+      updateSelectAllStates();
+    });
+
+    enableAutoFieldsToggle.addEventListener('change', (e) => {
+      if (e.target.checked && !planilhaStats.temIbscbs) {
+        showStatus('warning', '⚠️ CODCST_IBSCBS não encontrado. Sincronização desativada.');
+        e.target.checked = false;
+        return;
+      }
+      renderFieldSelectors();
+      if (e.target.checked) {
+        showStatus('success', '✅ Sincronização ativada. Alíquotas e campos mapeados serão preenchidos automaticamente.');
+      } else {
+        showStatus('info', '⚠️ Sincronização desativada.');
+      }
+    });
+
+    document.addEventListener('change', (e) => {
+      if (e.target.classList && (e.target.classList.contains('set-checkbox') || e.target.classList.contains('where-checkbox'))) {
+        updateSelectAllStates();
+      }
+    });
+
+    generateBtn.addEventListener('click', generateSQL);
+    copyBtn.addEventListener('click', copySQLs);
+    exportBtn.addEventListener('click', exportSQLs);
+    clearBtn.addEventListener('click', clearAll);
+
+    document.getElementById('sheetConfirmBtn').addEventListener('click', () => {
+      const selected = document.querySelector('input[name="sheetSelect"]:checked');
+      if (selected) {
+        processSheet(selected.value);
+      }
+    });
+
+    document.getElementById('sheetCancelBtn').addEventListener('click', () => {
+      document.getElementById('sheetModalOverlay').classList.remove('active');
+      showStatus('info', '⚡ Seleção de aba cancelada.');
+    });
+
+    document.getElementById('sheetModalOverlay').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) {
+        document.getElementById('sheetModalOverlay').classList.remove('active');
+        showStatus('info', '⚡ Seleção de aba cancelada.');
+      }
+    });
+
+    console.log('✅ v5.9.6 - Com filtro de busca de campos, aspas customizáveis, transações e processamento por lote');
+  </script>
+</body>
+
+</html>
