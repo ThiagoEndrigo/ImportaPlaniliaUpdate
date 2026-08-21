@@ -4,6 +4,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Gerador de UPDATE SQL v5.11</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -782,6 +785,21 @@
   </div>
 
   <script>
+    const APP_VERSION = '5.11';
+
+    // Auto version check & Cache Busting
+    (function checkAppVersion() {
+      const storedVersion = localStorage.getItem('gerador_sql_version');
+      if (storedVersion !== APP_VERSION) {
+        localStorage.setItem('gerador_sql_version', APP_VERSION);
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('v') !== APP_VERSION) {
+          urlParams.set('v', APP_VERSION);
+          window.location.search = urlParams.toString();
+        }
+      }
+    })();
+
     // ============================================
     // Gerador de UPDATE SQL - v5.11
     // ============================================
@@ -1850,6 +1868,13 @@
       if (e.target === e.currentTarget) {
         document.getElementById('sheetModalOverlay').classList.remove('active');
         showStatus('info', '⚡ Seleção de aba cancelada.');
+      }
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('v') === APP_VERSION) {
+        showStatus('success', `⚡ Aplicação atualizada automaticamente para a versão v${APP_VERSION}! Cache renovado.`);
       }
     });
 
