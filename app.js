@@ -1155,9 +1155,10 @@ const APP_VERSION = '5.23';
       const aliquotasBase = aliquotasMapeadas || (semAliquota
         ? { ALIQ_IBS_UF: '0', ALIQ_IBS_MUN: '0', ALIQ_CBS: '0' }
         : ALIQUOTAS_TRANSICAO_2026);
-      const efetiva = (aliquota, reducao) => String(
-        lerNumeroTributario(aliquota) * Math.max(0, 1 - lerNumeroTributario(reducao) / 100)
-      );
+      const efetiva = (aliquota, reducao) => {
+        const resultado = lerNumeroTributario(aliquota) * Math.max(0, 1 - lerNumeroTributario(reducao) / 100);
+        return resultado.toFixed(3).replace(/\.?0+$/, '');
+      };
       const aliquotas = [
         ['ALIQ_IBS_UF', aliquotasBase.ALIQ_IBS_UF],
         ['ALIQ_EFETIVA_IBS_UF', efetiva(aliquotasBase.ALIQ_IBS_UF, reducoes.REDUCAO_ALIQ_IBS_UF)],
