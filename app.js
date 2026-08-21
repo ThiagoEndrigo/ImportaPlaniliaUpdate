@@ -1,4 +1,4 @@
-const APP_VERSION = '5.22';
+const APP_VERSION = '5.23';
 
     // Auto version check & Cache Busting
     (function checkAppVersion() {
@@ -14,7 +14,7 @@ const APP_VERSION = '5.22';
     })();
 
     // ============================================
-    // Controlador da interface do Gerador de UPDATE SQL - v5.22
+    // Controlador da interface do Gerador de UPDATE SQL - v5.23
     // ============================================
 
     let excelData = [];
@@ -38,6 +38,14 @@ const APP_VERSION = '5.22';
     // ============================================
     // MAPEAMENTO DE ALÍQUOTAS
     // ============================================
+    // Regra de transição de 2026 da LC 214/2025, arts. 343 e 346.
+    // A alíquota municipal do IBS só passa a ser destacada em 2027.
+    const ALIQUOTAS_TRANSICAO_2026 = Object.freeze({
+      ALIQ_CBS: '0.9',
+      ALIQ_IBS_UF: '0.1',
+      ALIQ_IBS_MUN: '0'
+    });
+
     const ALIQUOTAS_MAP = {
       '000|000001': {
         ALIQ_CBS: '0.9',
@@ -1146,7 +1154,7 @@ const APP_VERSION = '5.22';
       const semAliquota = String(classificacao.TipoAliquota || '').includes('Sem Alíquota');
       const aliquotasBase = aliquotasMapeadas || (semAliquota
         ? { ALIQ_IBS_UF: '0', ALIQ_IBS_MUN: '0', ALIQ_CBS: '0' }
-        : ALIQUOTAS_MAP['000|000001']);
+        : ALIQUOTAS_TRANSICAO_2026);
       const efetiva = (aliquota, reducao) => String(
         lerNumeroTributario(aliquota) * Math.max(0, 1 - lerNumeroTributario(reducao) / 100)
       );
@@ -1190,7 +1198,7 @@ const APP_VERSION = '5.22';
     function abrirSimuladorTributario(cst, codigo) {
       const classificacao = obterClassificacaoOficial(cst, codigo);
       if (!classificacao) return;
-      const aliquotas = getAliquotasPorCombinacao(cst, codigo) || ALIQUOTAS_MAP['000|000001'];
+      const aliquotas = getAliquotasPorCombinacao(cst, codigo) || ALIQUOTAS_TRANSICAO_2026;
       const campo = (rotulo, atributo, valor, somenteLeitura = false) => `
         <label class="tax-field">${rotulo}
           <input type="text" inputmode="decimal" ${atributo} value="${escapeHtml(String(valor ?? 0))}" ${somenteLeitura ? 'readonly' : ''}>
