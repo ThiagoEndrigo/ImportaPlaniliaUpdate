@@ -1,0 +1,17 @@
+# Node & Dependencies
+node_modules/
+package.json
+package-lock.json
+
+# Test & Debug Scripts
+debug_*.js
+test_*.js
+
+# Spreadsheets & Data Files
+*.xlsx
+*.xls
+*.csv
+
+# OS & Temp Files
+.DS_Store
+Thumbs.db

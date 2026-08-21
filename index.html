@@ -1514,8 +1514,8 @@
               const rawAlias = valorClasstribIbscbs;
               const valorCanonical = rawClasstrib || rawAlias || null;
 
-              const temClasstrib = campoExisteNaPlanilha('CODCST_CLASSTRIB');
-              const temAlias = campoExisteNaPlanilha('CODCST_CLASSTRIB_IBSCBS');
+              const temClasstrib = headers.some(h => h.toUpperCase() === 'CODCST_CLASSTRIB');
+              const temAlias = headers.some(h => h.toUpperCase() === 'CODCST_CLASSTRIB_IBSCBS');
               const classtribSet = processedFields.has('CODCST_CLASSTRIB');
               const aliasSet = processedFields.has('CODCST_CLASSTRIB_IBSCBS');
 
