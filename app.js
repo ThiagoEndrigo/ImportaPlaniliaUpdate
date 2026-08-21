@@ -1,4 +1,4 @@
-const APP_VERSION = '5.24';
+const APP_VERSION = '5.25';
 
     // Auto version check & Cache Busting
     (function checkAppVersion() {
@@ -14,7 +14,7 @@ const APP_VERSION = '5.24';
     })();
 
     // ============================================
-    // Controlador da interface do Gerador de UPDATE SQL - v5.24
+    // Controlador da interface do Gerador de UPDATE SQL - v5.25
     // ============================================
 
     let excelData = [];
@@ -1273,6 +1273,11 @@ const APP_VERSION = '5.24';
       document.getElementById('classTribCalculator').innerHTML = `
         <h4>Tributação — CST ${escapeHtml(cst)} · ClassTrib ${escapeHtml(codigo)}</h4>
         <p>${escapeHtml(classificacao.DescricaoClassTrib || '')}</p>
+        <div class="class-trib-sql-actions class-trib-sql-actions-top">
+          <button type="button" class="btn-primary" id="generateMovNotaItemSqlBtn" data-cst="${escapeHtml(cst)}" data-class-trib="${escapeHtml(codigo)}">⚡ Recalcula Mov_Nota_Item</button>
+          <button type="button" class="btn-primary" id="generateClassTribSqlBtn" data-cst="${escapeHtml(cst)}" data-class-trib="${escapeHtml(codigo)}">⚡ Gerar UPDATE CARDAP</button>
+          <button type="button" class="btn-secondary" id="copyClassTribSqlBtn" hidden>📋 Copiar SQL</button>
+        </div>
         <label class="tax-base-field">Valor da base de cálculo
           <input type="text" inputmode="decimal" data-tax="base" value="100">
         </label>
@@ -1280,11 +1285,6 @@ const APP_VERSION = '5.24';
           ${cartao('IBS Estadual', 'uf', aliquotas.ALIQ_IBS_UF, classificacao.pRedIBS)}
           ${cartao('IBS Municipal', 'mun', aliquotas.ALIQ_IBS_MUN, classificacao.pRedIBS)}
           ${cartao('CBS', 'cbs', aliquotas.ALIQ_CBS, classificacao.pRedCBS)}
-        </div>
-        <div class="class-trib-sql-actions">
-          <button type="button" class="btn-primary" id="generateClassTribSqlBtn" data-cst="${escapeHtml(cst)}" data-class-trib="${escapeHtml(codigo)}">⚡ Gerar UPDATE CARDAP</button>
-          <button type="button" class="btn-primary" id="generateMovNotaItemSqlBtn" data-cst="${escapeHtml(cst)}" data-class-trib="${escapeHtml(codigo)}">⚡ Recalcula Mov_Nota_Item</button>
-          <button type="button" class="btn-secondary" id="copyClassTribSqlBtn" hidden>📋 Copiar SQL</button>
         </div>
         <pre id="classTribSqlOutput" class="class-trib-sql-output" hidden aria-live="polite"></pre>`;
       document.getElementById('classTribSearchSummary').hidden = true;

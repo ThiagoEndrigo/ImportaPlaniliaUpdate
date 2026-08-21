@@ -816,6 +816,10 @@
   flex-wrap: wrap;
 }
 
+.class-trib-sql-actions-top {
+  margin: 14px 0;
+}
+
 .class-trib-sql-output {
   margin-top: 12px;
   padding: 14px;
