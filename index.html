@@ -7,20 +7,20 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Gerador de UPDATE SQL v5.26</title>
+  <title>Gerador de UPDATE SQL v5.27</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
     rel="stylesheet">
   <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
-  <link rel="stylesheet" href="./styles.css?v=5.26">
+  <link rel="stylesheet" href="./styles.css?v=5.27">
 </head>
 
 <body>
   <div class="container">
     <header class="header">
-      <h1>📊 Gerador de UPDATE SQL <span class="version-badge">v5.26</span></h1>
+      <h1>📊 Gerador de UPDATE SQL <span class="version-badge">v5.27</span></h1>
       <p>Importe a planilha, selecione os campos para SET e WHERE, e gere comandos UPDATE automaticamente.</p>
       <div class="upload-area" id="uploadArea">
         <p>📁 Clique ou arraste um arquivo Excel (.xlsx, .xls) aqui</p>
@@ -146,10 +146,25 @@
     </div>
   </div>
 
-  <script src="./class-trib-data.js?v=5.26"></script>
-  <script src="./class-trib-service.js?v=5.26"></script>
-  <script src="./sql-statement-builder.js?v=5.26"></script>
-  <script src="./app.js?v=5.26"></script>
+  <div class="sheet-modal-overlay" id="movNotaPasswordOverlay" role="dialog" aria-modal="true" aria-labelledby="movNotaPasswordTitle">
+    <div class="sheet-modal password-modal">
+      <h3 id="movNotaPasswordTitle">🔒 Senha necessária</h3>
+      <p>Informe a senha para gerar o UPDATE de MOV_NOTA_ITEM.</p>
+      <label class="password-field" for="movNotaPasswordInput">Senha
+        <input type="password" id="movNotaPasswordInput" autocomplete="current-password">
+      </label>
+      <p id="movNotaPasswordMessage" class="password-message" aria-live="polite"></p>
+      <div class="sheet-modal-actions">
+        <button type="button" class="btn-secondary" id="cancelMovNotaPasswordBtn">Cancelar</button>
+        <button type="button" class="btn-primary" id="confirmMovNotaPasswordBtn">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./class-trib-data.js?v=5.27"></script>
+  <script src="./class-trib-service.js?v=5.27"></script>
+  <script src="./sql-statement-builder.js?v=5.27"></script>
+  <script src="./app.js?v=5.27"></script>
 </body>
 
 </html>

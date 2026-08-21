@@ -834,6 +834,40 @@
   white-space: pre;
 }
 
+.password-modal {
+  width: min(420px, 92vw);
+}
+
+.password-field {
+  display: grid;
+  gap: 6px;
+  margin-top: 16px;
+  color: var(--text-soft);
+  font-size: .85rem;
+  font-weight: 600;
+}
+
+.password-field input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+
+.password-field input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, .1);
+}
+
+.password-message {
+  min-height: 1.2rem;
+  margin-top: 8px;
+  color: var(--danger);
+  font-size: .8rem;
+}
+
 @media (max-width: 700px) {
   .class-trib-modal { width: min(96vw, 1120px); }
   .tax-columns { grid-template-columns: 1fr; }

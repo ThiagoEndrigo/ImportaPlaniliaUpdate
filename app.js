@@ -1,4 +1,4 @@
-const APP_VERSION = '5.26';
+const APP_VERSION = '5.27';
 
     // Auto version check & Cache Busting
     (function checkAppVersion() {
@@ -14,7 +14,7 @@ const APP_VERSION = '5.26';
     })();
 
     // ============================================
-    // Controlador da interface do Gerador de UPDATE SQL - v5.26
+    // Controlador da interface do Gerador de UPDATE SQL - v5.27
     // ============================================
 
     let excelData = [];
@@ -26,6 +26,7 @@ const APP_VERSION = '5.26';
     let currentWorkbook = null;
     let currentFile = null;
     const SENHA_RECALCULA_MOV_NOTA_ITEM = 'geraupdate';
+    let resolverSenhaRecalculaMovNotaItem = null;
 
     let planilhaStats = {
       totalRegistros: 0,
@@ -1233,14 +1234,24 @@ const APP_VERSION = '5.26';
       document.getElementById('copyClassTribSqlBtn').hidden = false;
     }
 
-    function validarSenhaRecalculaMovNotaItem() {
-      const senha = window.prompt('Digite a senha para gerar o UPDATE de MOV_NOTA_ITEM:');
-      if (senha === null) return false;
-      if (senha !== SENHA_RECALCULA_MOV_NOTA_ITEM) {
-        window.alert('Senha inválida.');
-        return false;
-      }
-      return true;
+    function solicitarSenhaRecalculaMovNotaItem() {
+      const overlay = document.getElementById('movNotaPasswordOverlay');
+      const input = document.getElementById('movNotaPasswordInput');
+      const mensagem = document.getElementById('movNotaPasswordMessage');
+      input.value = '';
+      mensagem.textContent = '';
+      overlay.classList.add('active');
+      setTimeout(() => input.focus(), 0);
+      return new Promise(resolve => {
+        resolverSenhaRecalculaMovNotaItem = resolve;
+      });
+    }
+
+    function concluirSenhaRecalculaMovNotaItem(autorizada) {
+      document.getElementById('movNotaPasswordOverlay').classList.remove('active');
+      const resolver = resolverSenhaRecalculaMovNotaItem;
+      resolverSenhaRecalculaMovNotaItem = null;
+      if (resolver) resolver(autorizada);
     }
 
     async function copiarUpdateClassTributaria() {
@@ -1336,6 +1347,9 @@ const APP_VERSION = '5.26';
     const classTribModalOverlay = document.getElementById('classTribModalOverlay');
     const classTribSearchInput = document.getElementById('classTribSearchInput');
     const classTribSearchResults = document.getElementById('classTribSearchResults');
+    const movNotaPasswordOverlay = document.getElementById('movNotaPasswordOverlay');
+    const movNotaPasswordInput = document.getElementById('movNotaPasswordInput');
+    const movNotaPasswordMessage = document.getElementById('movNotaPasswordMessage');
 
     function carregarCatalogoSEFAZInterno() {
       try {
@@ -1385,11 +1399,27 @@ const APP_VERSION = '5.26';
       }
       const movNotaItemButton = event.target.closest('#generateMovNotaItemSqlBtn');
       if (movNotaItemButton) {
-        if (validarSenhaRecalculaMovNotaItem()) {
-          gerarUpdateMovNotaItem(movNotaItemButton.dataset.cst, movNotaItemButton.dataset.classTrib);
-        }
+        solicitarSenhaRecalculaMovNotaItem().then(autorizada => {
+          if (autorizada) gerarUpdateMovNotaItem(movNotaItemButton.dataset.cst, movNotaItemButton.dataset.classTrib);
+        });
       }
       if (event.target.closest('#copyClassTribSqlBtn')) copiarUpdateClassTributaria();
+    });
+    document.getElementById('confirmMovNotaPasswordBtn').addEventListener('click', () => {
+      if (movNotaPasswordInput.value !== SENHA_RECALCULA_MOV_NOTA_ITEM) {
+        movNotaPasswordMessage.textContent = 'Senha inválida.';
+        movNotaPasswordInput.select();
+        return;
+      }
+      concluirSenhaRecalculaMovNotaItem(true);
+    });
+    document.getElementById('cancelMovNotaPasswordBtn').addEventListener('click', () => concluirSenhaRecalculaMovNotaItem(false));
+    movNotaPasswordInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter') document.getElementById('confirmMovNotaPasswordBtn').click();
+      if (event.key === 'Escape') concluirSenhaRecalculaMovNotaItem(false);
+    });
+    movNotaPasswordOverlay.addEventListener('click', event => {
+      if (event.target === event.currentTarget) concluirSenhaRecalculaMovNotaItem(false);
     });
     document.getElementById('backToClassTribSearchBtn').addEventListener('click', voltarConsultaClassTrib);
     classTribModalOverlay.addEventListener('click', event => {
