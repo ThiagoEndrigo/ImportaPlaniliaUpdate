@@ -7,7 +7,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Gerador de UPDATE SQL v5.11</title>
+  <title>Gerador de UPDATE SQL v5.20</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
@@ -680,7 +680,7 @@
 <body>
   <div class="container">
     <header class="header">
-      <h1>📊 Gerador de UPDATE SQL <span class="version-badge">v5.11</span></h1>
+      <h1>📊 Gerador de UPDATE SQL <span class="version-badge">v5.20</span></h1>
       <p>Importe a planilha, selecione os campos para SET e WHERE, e gere comandos UPDATE automaticamente.</p>
       <div class="upload-area" id="uploadArea">
         <p>📁 Clique ou arraste um arquivo Excel (.xlsx, .xls) aqui</p>
@@ -704,9 +704,8 @@
       <div class="option-toggle">
         <label>
           <input type="checkbox" id="enableAutoFieldsToggle">
-          <span>🔄 Sincronizar CODCST_CLASSTRIB com CODCST_IBSCBS</span>
-          <span style="color: var(--text-muted); font-size: 0.75rem;">(ℹ️ Quando marcado, atualiza CODCST_CLASSTRIB com
-            o valor de CODCST_IBSCBS)</span>
+          <span>🔄 Completar campos IBS/CBS vazios</span>
+          <span style="color: var(--text-muted); font-size: 0.75rem;">(ℹ️ Valores existentes na planilha nunca são alterados)</span>
         </label>
       </div>
 
@@ -785,7 +784,7 @@
   </div>
 
   <script>
-    const APP_VERSION = '5.11';
+    const APP_VERSION = '5.20';
 
     // Auto version check & Cache Busting
     (function checkAppVersion() {
@@ -801,7 +800,7 @@
     })();
 
     // ============================================
-    // Gerador de UPDATE SQL - v5.11
+    // Gerador de UPDATE SQL - v5.20
     // ============================================
 
     let excelData = [];
@@ -976,8 +975,6 @@
 
     const ALIASES_CODCST_CLASSTRIB = [
       'CODCST_CLASSTRIB',
-      'CODCST_CLASSTRIB_IBSCBS',
-      'CODCST_CLASSTRIB_IBS_CBS',
       'CODCST_CLASS_TRIB',
       'CODCST_CLASSTRIB_IBS',
       'COD_CLASSTRIB',
@@ -987,6 +984,13 @@
       'CODCLASSTRIB',
       'CLASS_TRIB',
       'CLASSTRIB_IBS'
+    ];
+
+    // This field is distinct from CODCST_CLASSTRIB. Keep its aliases isolated
+    // so a spreadsheet column for one tax field can never populate the other.
+    const ALIASES_CODCST_CLASSTRIB_IBSCBS = [
+      'CODCST_CLASSTRIB_IBSCBS',
+      'CODCST_CLASSTRIB_IBS_CBS'
     ];
 
     function ehAliasIbscbs(nomeCampo) {
@@ -999,11 +1003,17 @@
       return ALIASES_CODCST_CLASSTRIB.includes(nomeCampo.toUpperCase());
     }
 
+    function ehAliasClasstribIbscbs(nomeCampo) {
+      if (!nomeCampo) return false;
+      return ALIASES_CODCST_CLASSTRIB_IBSCBS.includes(nomeCampo.toUpperCase());
+    }
+
     function campoExisteNaPlanilha(nomeCampo) {
       if (!nomeCampo) return false;
       const upper = nomeCampo.toUpperCase();
       if (headers.some(h => h.toUpperCase() === upper)) return true;
       if (ehAliasIbscbs(upper)) return headers.some(h => ehAliasIbscbs(h));
+      if (ehAliasClasstribIbscbs(upper)) return headers.some(h => ehAliasClasstribIbscbs(h));
       if (ehAliasClasstrib(upper)) return headers.some(h => ehAliasClasstrib(h));
       return false;
     }
@@ -1013,7 +1023,7 @@
       const campo = nomeCampo.toUpperCase();
       let tamanho = 0;
       if (ehAliasIbscbs(campo)) tamanho = 3;
-      else if (ehAliasClasstrib(campo)) tamanho = 6;
+      else if (ehAliasClasstribIbscbs(campo) || ehAliasClasstrib(campo)) tamanho = 6;
       if (tamanho === 0) return valor;
       let str = cleanString(valor).replace(/^['"]|['"]$/g, '');
       if (/^\d+\.0+$/.test(str)) str = str.replace(/\.0+$/, '');
@@ -1030,6 +1040,8 @@
       if (colIndex === -1) {
         if (ehAliasIbscbs(upper)) {
           colIndex = headers.findIndex(h => ehAliasIbscbs(h));
+        } else if (ehAliasClasstribIbscbs(upper)) {
+          colIndex = headers.findIndex(h => ehAliasClasstribIbscbs(h));
         } else if (ehAliasClasstrib(upper)) {
           colIndex = headers.findIndex(h => ehAliasClasstrib(h));
         }
@@ -1452,6 +1464,46 @@
       progressPercent.textContent = '0%';
 
       try {
+        // Caminho único de geração: transpõe os valores da planilha para SQL
+        // sem qualquer sincronização, alias alternativo ou cálculo automático.
+        const sqlDireto = [];
+        for (const row of excelData) {
+          const setDireto = [];
+          const whereDireto = [];
+
+          for (const field of setFields) {
+            let valor = getValorCampo(row, field);
+            if (valor === undefined || valor === null || valor === '') continue;
+            if (deveFormatarCST(field)) valor = formatarCST(valor);
+            setDireto.push(`${escapeIdentifier(field)} = ${formatValue(valor)}`);
+          }
+
+          for (const field of whereFields) {
+            let valor = getValorCampo(row, field);
+            if (valor === undefined || valor === null || valor === '') continue;
+            if (deveFormatarCST(field)) valor = formatarCST(valor);
+            whereDireto.push(`${escapeIdentifier(field)} = ${formatValue(valor)}`);
+          }
+
+          if (setDireto.length > 0 && whereDireto.length > 0) {
+            sqlDireto.push(`UPDATE ${escapeIdentifier(currentTableName)} SET ${setDireto.join(', ')} WHERE ${whereDireto.join(' AND ')};`);
+          }
+        }
+
+        if (sqlDireto.length === 0) {
+          showStatus('error', '❌ Nenhum SQL foi gerado.');
+          return;
+        }
+
+        generatedSQLs = sqlDireto;
+        sqlOutput.textContent = generatedSQLs.join('\n\n');
+        sqlCounter.textContent = `${generatedSQLs.length} comandos gerados`;
+        progressBar.style.width = '100%';
+        progressText.textContent = `Gerados ${generatedSQLs.length}/${excelData.length} SQLs`;
+        progressPercent.textContent = '100%';
+        showStatus('success', `✅ ${generatedSQLs.length} UPDATE gerados diretamente da planilha.`);
+        return;
+
         const sqlCommands = [];
         let cstFormatCount = 0;
         let syncCount = 0;
@@ -1476,9 +1528,9 @@
             const classtribSync = syncEnabled
               ? (valorClasstribIbscbs || getValorCampo(row, 'CODCST_CLASSTRIB'))
               : (getValorCampo(row, 'CODCST_CLASSTRIB') || valorClasstribIbscbs);
-            const aliquotasSync = (ibscbsSync && classtribSync)
-              ? getAliquotasPorCombinacao(ibscbsSync, classtribSync)
-              : null;
+            // Não inferir valores fiscais. Cada campo do UPDATE deve refletir
+            // exclusivamente o conteúdo da linha importada da planilha.
+            const aliquotasSync = null;
 
             for (const field of setFields) {
               const fieldUpper = field.toUpperCase();
@@ -1487,30 +1539,23 @@
               let valorFinal = campoExisteNaPlanilha(field) ? getValorCampo(row, field) : undefined;
 
               if (fieldUpper === 'CODCST_CLASSTRIB') {
-                if (syncEnabled) {
-                  valorFinal = valorClasstribIbscbs || valorFinal;
-                } else if (valorFinal === undefined || valorFinal === '') {
+                if (valorFinal === undefined || valorFinal === '') {
                   if (valorClasstribIbscbs) valorFinal = valorClasstribIbscbs;
                 }
               }
               if (fieldUpper === 'CODCST_CLASSTRIB_IBSCBS') {
-                if (syncEnabled) {
-                  valorFinal = classtribSync || valorFinal;
-                } else if (valorFinal === undefined || valorFinal === '') {
+                if (valorFinal === undefined || valorFinal === '') {
                   valorFinal = getValorCampo(row, 'CODCST_CLASSTRIB') || valorClasstribIbscbs;
                 }
               }
 
-              if (syncEnabled && aliquotasSync) {
+              // A planilha é a fonte de verdade. O mapa interno só completa
+              // campos vazios; nunca pode substituir um valor importado.
+              if ((valorFinal === undefined || valorFinal === '') && aliquotasSync) {
                 const valMap = obterValorAliquota(aliquotasSync, fieldUpper);
                 if (valMap !== undefined) {
                   valorFinal = valMap;
                   hasAutoFill = true;
-                }
-              } else if (!syncEnabled && (valorFinal === undefined || valorFinal === '') && aliquotasSync) {
-                const valMap = obterValorAliquota(aliquotasSync, fieldUpper);
-                if (valMap !== undefined) {
-                  valorFinal = valMap;
                 }
               }
 
@@ -1549,7 +1594,9 @@
               }
             }
 
-            if (syncEnabled) {
+            // Campos presentes na planilha não são sincronizados entre si.
+            // Isso impede que uma classificação preencha ou substitua outra.
+            if (syncEnabled && !headers.some(h => h.toUpperCase() === 'CODCST_CLASSTRIB') && !headers.some(h => h.toUpperCase() === 'CODCST_CLASSTRIB_IBSCBS')) {
               const valorSincronizado = valorClasstribIbscbs || getValorCampo(row, 'CODCST_CLASSTRIB');
               if (valorSincronizado) {
                 if (headers.some(h => h.toUpperCase() === 'CODCST_CLASSTRIB')) {
@@ -1587,6 +1634,9 @@
                 if (!campoExisteNaPlanilha(header)) return;
                 const headerUpper = header.toUpperCase();
                 if (ehCampoAliquota(headerUpper)) {
+                  // Não alterar alíquota existente na planilha durante a sincronização.
+                  const valorImportado = getValorCampo(row, header);
+                  if (valorImportado !== undefined && valorImportado !== '') return;
                   const valMap = obterValorAliquota(aliquotasSync, headerUpper);
                   if (valMap !== undefined) {
                     if (processedFields.has(headerUpper)) {
@@ -1603,6 +1653,26 @@
                   }
                 }
               });
+            }
+
+            // Validação final: campos existentes na planilha sempre prevalecem
+            // sobre qualquer regra aplicada durante a montagem do UPDATE.
+            for (const field of setFields) {
+              const valorPlanilha = getValorCampo(row, field);
+              if (valorPlanilha === undefined || valorPlanilha === null || valorPlanilha === '') continue;
+
+              const valorFinalPlanilha = deveFormatarCST(field)
+                ? formatarCST(valorPlanilha)
+                : valorPlanilha;
+              const identificador = escapeIdentifier(field);
+              const clausula = `${identificador} = ${formatValue(valorFinalPlanilha)}`;
+              const indice = setClauses.findIndex(c => c.startsWith(identificador + ' ='));
+
+              if (indice === -1) {
+                setClauses.push(clausula);
+              } else {
+                setClauses[indice] = clausula;
+              }
             }
 
             for (const field of whereFields) {
@@ -1639,14 +1709,8 @@
 
         generatedSQLs = sqlCommands;
 
-        const maxPreviewLines = 200;
-        if (sqlCommands.length <= maxPreviewLines) {
-          sqlOutput.innerHTML = escapeHtml(sqlCommands.join('\n\n'));
-        } else {
-          const previewPart = sqlCommands.slice(0, maxPreviewLines).join('\n\n');
-          const remainingCount = sqlCommands.length - maxPreviewLines;
-          sqlOutput.innerHTML = escapeHtml(previewPart) + `\n\n-- ℹ️ ... [Mais ${remainingCount} comandos omitidos da prévia de tela para melhor performance].\n-- 📋 Clique em "Copiar SQLs" ou 💾 "Exportar SQLs" para obter todos os ${sqlCommands.length} comandos completos.`;
-        }
+        // Tela, cópia e exportação devem partir da mesma lista completa de SQLs.
+        sqlOutput.textContent = generatedSQLs.join('\n\n');
 
         sqlCounter.textContent = `${sqlCommands.length} comandos gerados`;
 
@@ -1679,10 +1743,39 @@
         showStatus('error', '❌ Nenhum SQL gerado para copiar');
         return;
       }
-      navigator.clipboard.writeText(generatedSQLs.join('\n\n')).then(() => {
+      const conteudo = sqlOutput.textContent;
+      const copiarComFallback = () => {
+        const areaTemporaria = document.createElement('textarea');
+        areaTemporaria.value = conteudo;
+        areaTemporaria.style.position = 'fixed';
+        areaTemporaria.style.opacity = '0';
+        document.body.appendChild(areaTemporaria);
+        areaTemporaria.select();
+        const copiou = document.execCommand('copy');
+        areaTemporaria.remove();
+        if (!copiou) throw new Error('Não foi possível acessar a área de transferência');
+      };
+      // Em arquivo local, execute o fallback no próprio clique do botão.
+      // Isso preserva a permissão de área de transferência do navegador.
+      if (!navigator.clipboard?.writeText || !window.isSecureContext) {
+        try {
+          copiarComFallback();
+          showStatus('success', '📋 SQLs copiados!');
+        } catch {
+          showStatus('error', '❌ Erro ao copiar SQLs');
+        }
+        return;
+      }
+
+      navigator.clipboard.writeText(conteudo).then(() => {
         showStatus('success', '📋 SQLs copiados!');
       }).catch(() => {
-        showStatus('error', '❌ Erro ao copiar SQLs');
+        try {
+          copiarComFallback();
+          showStatus('success', '📋 SQLs copiados!');
+        } catch {
+          showStatus('error', '❌ Erro ao copiar SQLs');
+        }
       });
     }
 
@@ -1693,13 +1786,18 @@
       }
       let baseFileName = originalFileName || currentTableName;
       baseFileName = baseFileName.replace(/[^a-zA-Z0-9_\-]/g, '_');
-      const blob = new Blob([generatedSQLs.join('\n\n')], { type: 'text/plain' });
+      const blob = new Blob([sqlOutput.textContent], { type: 'text/sql;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `${baseFileName}_update.sql`;
+      a.style.display = 'none';
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+        a.remove();
+      }, 1000);
       showStatus('success', '💾 SQLs exportados!');
     }
 
@@ -1878,7 +1976,7 @@
       }
     });
 
-    console.log('✅ v5.11 - Com filtro de busca de campos, aspas customizáveis, transações e processamento por lote');
+    console.log('✅ v5.20 - Geração direta de SQL a partir das células importadas');
   </script>
 </body>
 
