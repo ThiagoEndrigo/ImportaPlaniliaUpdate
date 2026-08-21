@@ -1,4 +1,4 @@
-const APP_VERSION = '5.21';
+const APP_VERSION = '5.22';
 
     // Auto version check & Cache Busting
     (function checkAppVersion() {
@@ -14,7 +14,7 @@ const APP_VERSION = '5.21';
     })();
 
     // ============================================
-    // Controlador da interface do Gerador de UPDATE SQL - v5.21
+    // Controlador da interface do Gerador de UPDATE SQL - v5.22
     // ============================================
 
     let excelData = [];
@@ -1136,6 +1136,57 @@ const APP_VERSION = '5.21';
       });
     }
 
+    function gerarUpdateCardapClassTributaria(cst, codigo) {
+      const classificacao = obterClassificacaoOficial(cst, codigo);
+      if (!classificacao) return;
+      const cstOficial = classificacao.CST;
+      const codigoOficial = classificacao.cClassTrib;
+      const reducoes = obterReducaoOficial(classificacao);
+      const aliquotasMapeadas = getAliquotasPorCombinacao(cstOficial, codigoOficial);
+      const semAliquota = String(classificacao.TipoAliquota || '').includes('Sem Alíquota');
+      const aliquotasBase = aliquotasMapeadas || (semAliquota
+        ? { ALIQ_IBS_UF: '0', ALIQ_IBS_MUN: '0', ALIQ_CBS: '0' }
+        : ALIQUOTAS_MAP['000|000001']);
+      const efetiva = (aliquota, reducao) => String(
+        lerNumeroTributario(aliquota) * Math.max(0, 1 - lerNumeroTributario(reducao) / 100)
+      );
+      const aliquotas = [
+        ['ALIQ_IBS_UF', aliquotasBase.ALIQ_IBS_UF],
+        ['ALIQ_EFETIVA_IBS_UF', efetiva(aliquotasBase.ALIQ_IBS_UF, reducoes.REDUCAO_ALIQ_IBS_UF)],
+        ['REDUCAO_ALIQ_IBS_UF', reducoes.REDUCAO_ALIQ_IBS_UF],
+        ['ALIQ_IBS_MUN', aliquotasBase.ALIQ_IBS_MUN],
+        ['ALIQ_EFETIVA_IBS_MUN', efetiva(aliquotasBase.ALIQ_IBS_MUN, reducoes.REDUCAO_ALIQ_IBS_MUN)],
+        ['REDUCAO_ALIQ_IBS_MUN', reducoes.REDUCAO_ALIQ_IBS_MUN],
+        ['ALIQ_CBS', aliquotasBase.ALIQ_CBS],
+        ['ALIQ_EFETIVA_CBS', efetiva(aliquotasBase.ALIQ_CBS, reducoes.REDUCAO_ALIQ_CBS)],
+        ['REDUCAO_ALIQ_CBS', reducoes.REDUCAO_ALIQ_CBS]
+      ];
+      const set = aliquotas.map(([campo, valorAliquota]) => `  ${campo} = ${formatValue(valorAliquota)}`).join(',\n');
+      const sql = `UPDATE CARDAP\nSET\n${set}\nWHERE\n  CODCST_IBSCBS = ${formatValue(cstOficial)} AND\n  CODCST_CLASSTRIB = ${formatValue(codigoOficial)} AND\n  CODEMP = '1';`;
+      const output = document.getElementById('classTribSqlOutput');
+      output.textContent = sql;
+      output.hidden = false;
+      document.getElementById('copyClassTribSqlBtn').hidden = false;
+    }
+
+    async function copiarUpdateClassTributaria() {
+      const sql = document.getElementById('classTribSqlOutput').textContent;
+      if (!sql) return;
+      try {
+        await navigator.clipboard.writeText(sql);
+      } catch (error) {
+        const area = document.createElement('textarea');
+        area.value = sql;
+        area.style.position = 'fixed';
+        area.style.opacity = '0';
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand('copy');
+        area.remove();
+      }
+      showStatus('success', '✅ UPDATE da classificação copiado para a área de transferência.');
+    }
+
     function abrirSimuladorTributario(cst, codigo) {
       const classificacao = obterClassificacaoOficial(cst, codigo);
       if (!classificacao) return;
@@ -1166,7 +1217,12 @@ const APP_VERSION = '5.21';
           ${cartao('IBS Estadual', 'uf', aliquotas.ALIQ_IBS_UF, classificacao.pRedIBS)}
           ${cartao('IBS Municipal', 'mun', aliquotas.ALIQ_IBS_MUN, classificacao.pRedIBS)}
           ${cartao('CBS', 'cbs', aliquotas.ALIQ_CBS, classificacao.pRedCBS)}
-        </div>`;
+        </div>
+        <div class="class-trib-sql-actions">
+          <button type="button" class="btn-primary" id="generateClassTribSqlBtn" data-cst="${escapeHtml(cst)}" data-class-trib="${escapeHtml(codigo)}">⚡ Gerar UPDATE CARDAP</button>
+          <button type="button" class="btn-secondary" id="copyClassTribSqlBtn" hidden>📋 Copiar SQL</button>
+        </div>
+        <pre id="classTribSqlOutput" class="class-trib-sql-output" hidden aria-live="polite"></pre>`;
       document.getElementById('classTribSearchSummary').hidden = true;
       document.getElementById('classTribSearchResults').hidden = true;
       document.getElementById('classTribCalculator').hidden = false;
@@ -1247,6 +1303,13 @@ const APP_VERSION = '5.21';
       if (resultado) abrirSimuladorTributario(resultado.dataset.cst, resultado.dataset.classTrib);
     });
     document.getElementById('classTribCalculator').addEventListener('input', atualizarSimuladorTributario);
+    document.getElementById('classTribCalculator').addEventListener('click', event => {
+      const generateButton = event.target.closest('#generateClassTribSqlBtn');
+      if (generateButton) {
+        gerarUpdateCardapClassTributaria(generateButton.dataset.cst, generateButton.dataset.classTrib);
+      }
+      if (event.target.closest('#copyClassTribSqlBtn')) copiarUpdateClassTributaria();
+    });
     document.getElementById('backToClassTribSearchBtn').addEventListener('click', voltarConsultaClassTrib);
     classTribModalOverlay.addEventListener('click', event => {
       if (event.target === event.currentTarget) classTribModalOverlay.classList.remove('active');
