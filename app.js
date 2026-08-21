@@ -1301,7 +1301,7 @@ const APP_VERSION = '5.27';
           <button type="button" class="btn-secondary" id="copyClassTribSqlBtn" hidden>📋 Copiar SQL</button>
         </div>
         <label class="tax-base-field">Valor da base de cálculo
-          <input type="text" inputmode="decimal" data-tax="base" value="100">
+          <input type="text" inputmode="decimal" data-tax="base" value="0">
         </label>
         <div class="tax-columns">
           ${cartao('IBS Estadual', 'uf', aliquotas.ALIQ_IBS_UF, classificacao.pRedIBS)}
