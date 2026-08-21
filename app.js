@@ -1,4 +1,4 @@
-const APP_VERSION = '5.25';
+const APP_VERSION = '5.26';
 
     // Auto version check & Cache Busting
     (function checkAppVersion() {
@@ -14,7 +14,7 @@ const APP_VERSION = '5.25';
     })();
 
     // ============================================
-    // Controlador da interface do Gerador de UPDATE SQL - v5.25
+    // Controlador da interface do Gerador de UPDATE SQL - v5.26
     // ============================================
 
     let excelData = [];
@@ -25,6 +25,7 @@ const APP_VERSION = '5.25';
     let originalFileName = '';
     let currentWorkbook = null;
     let currentFile = null;
+    const SENHA_RECALCULA_MOV_NOTA_ITEM = 'geraupdate';
 
     let planilhaStats = {
       totalRegistros: 0,
@@ -1232,6 +1233,16 @@ const APP_VERSION = '5.25';
       document.getElementById('copyClassTribSqlBtn').hidden = false;
     }
 
+    function validarSenhaRecalculaMovNotaItem() {
+      const senha = window.prompt('Digite a senha para gerar o UPDATE de MOV_NOTA_ITEM:');
+      if (senha === null) return false;
+      if (senha !== SENHA_RECALCULA_MOV_NOTA_ITEM) {
+        window.alert('Senha inválida.');
+        return false;
+      }
+      return true;
+    }
+
     async function copiarUpdateClassTributaria() {
       const sql = document.getElementById('classTribSqlOutput').textContent;
       if (!sql) return;
@@ -1374,7 +1385,9 @@ const APP_VERSION = '5.25';
       }
       const movNotaItemButton = event.target.closest('#generateMovNotaItemSqlBtn');
       if (movNotaItemButton) {
-        gerarUpdateMovNotaItem(movNotaItemButton.dataset.cst, movNotaItemButton.dataset.classTrib);
+        if (validarSenhaRecalculaMovNotaItem()) {
+          gerarUpdateMovNotaItem(movNotaItemButton.dataset.cst, movNotaItemButton.dataset.classTrib);
+        }
       }
       if (event.target.closest('#copyClassTribSqlBtn')) copiarUpdateClassTributaria();
     });
