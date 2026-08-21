@@ -1,4 +1,4 @@
-const APP_VERSION = '5.23';
+const APP_VERSION = '5.24';
 
     // Auto version check & Cache Busting
     (function checkAppVersion() {
@@ -14,7 +14,7 @@ const APP_VERSION = '5.23';
     })();
 
     // ============================================
-    // Controlador da interface do Gerador de UPDATE SQL - v5.23
+    // Controlador da interface do Gerador de UPDATE SQL - v5.24
     // ============================================
 
     let excelData = [];
@@ -137,6 +137,16 @@ const APP_VERSION = '5.23';
 
     function obterReducaoOficial(classificacao) {
       return classTribService.getReductions(classificacao);
+    }
+
+    function classificacaoSemAliquota(classificacao) {
+      if (!classificacao) return false;
+      if (String(classificacao.TipoAliquota || '').includes('Sem Alíquota')) return true;
+      const cst = classificacao.CST;
+      // O catálogo embarcado é compilado de classTrib.json e não inclui TipoAliquota.
+      // Estes grupos e exceções são as classificações "3 - Sem Alíquota" dessa fonte.
+      if (['410', '510', '550', '800', '810', '811', '820'].includes(cst)) return true;
+      return ['400|400002', '620|620007'].includes(`${cst}|${classificacao.cClassTrib}`);
     }
 
     const CAMPOS_ALIQUOTA = [
@@ -1151,7 +1161,7 @@ const APP_VERSION = '5.23';
       const codigoOficial = classificacao.cClassTrib;
       const reducoes = obterReducaoOficial(classificacao);
       const aliquotasMapeadas = getAliquotasPorCombinacao(cstOficial, codigoOficial);
-      const semAliquota = String(classificacao.TipoAliquota || '').includes('Sem Alíquota');
+      const semAliquota = classificacaoSemAliquota(classificacao);
       const aliquotasBase = aliquotasMapeadas || (semAliquota
         ? { ALIQ_IBS_UF: '0', ALIQ_IBS_MUN: '0', ALIQ_CBS: '0' }
         : ALIQUOTAS_TRANSICAO_2026);
@@ -1172,6 +1182,50 @@ const APP_VERSION = '5.23';
       ];
       const set = aliquotas.map(([campo, valorAliquota]) => `  ${campo} = ${formatValue(valorAliquota)}`).join(',\n');
       const sql = `UPDATE CARDAP\nSET\n${set}\nWHERE\n  CODCST_IBSCBS = ${formatValue(cstOficial)} AND\n  CODCST_CLASSTRIB = ${formatValue(codigoOficial)} AND\n  CODEMP = '1';`;
+      const output = document.getElementById('classTribSqlOutput');
+      output.textContent = sql;
+      output.hidden = false;
+      document.getElementById('copyClassTribSqlBtn').hidden = false;
+    }
+
+    function gerarUpdateMovNotaItem(cst, codigo) {
+      const classificacao = obterClassificacaoOficial(cst, codigo);
+      if (!classificacao) return;
+      const codigoOficial = classificacao.cClassTrib;
+      const reducoes = obterReducaoOficial(classificacao);
+      const aliquotasMapeadas = getAliquotasPorCombinacao(classificacao.CST, codigoOficial);
+      const semAliquota = classificacaoSemAliquota(classificacao);
+      const aliquotasBase = aliquotasMapeadas || (semAliquota
+        ? { ALIQ_IBS_UF: '0', ALIQ_IBS_MUN: '0', ALIQ_CBS: '0' }
+        : ALIQUOTAS_TRANSICAO_2026);
+      const efetiva = (aliquota, reducao) => {
+        const resultado = lerNumeroTributario(aliquota) * Math.max(0, 1 - lerNumeroTributario(reducao) / 100);
+        return resultado.toFixed(3).replace(/\.?0+$/, '');
+      };
+      // Conforme o exemplo informado para a classificação tributária 000001.
+      const zeraEfetivas = codigoOficial === '000001';
+      const ibsUfEfetiva = zeraEfetivas ? '0' : efetiva(aliquotasBase.ALIQ_IBS_UF, reducoes.REDUCAO_ALIQ_IBS_UF);
+      const ibsMunEfetiva = zeraEfetivas ? '0' : efetiva(aliquotasBase.ALIQ_IBS_MUN, reducoes.REDUCAO_ALIQ_IBS_MUN);
+      const cbsEfetiva = zeraEfetivas ? '0' : efetiva(aliquotasBase.ALIQ_CBS, reducoes.REDUCAO_ALIQ_CBS);
+      const sql = `UPDATE MOV_NOTA_ITEM i\nSET\n` +
+        `  i.RT_VLR_BASEIBS_UF_ITEM       = i.MI_VLR_TOTAL_ITEM,\n` +
+        `  i.RT_ALIQ_IBS_UF_ITEM          = ${aliquotasBase.ALIQ_IBS_UF},\n` +
+        `  i.RT_REDUCAO_ALIQ_IBS_UF_ITEM  = ${reducoes.REDUCAO_ALIQ_IBS_UF},\n` +
+        `  i.RT_ALIQ_EFETIVA_IBS_UF_ITEM  = ${ibsUfEfetiva},\n` +
+        `  i.RT_VAL_IBS_UF_ITEM           = ((${ibsUfEfetiva} / 100) * i.MI_VLR_TOTAL_ITEM),\n` +
+        `  i.RT_VLR_BASEIBS_MUN_ITEM      = i.MI_VLR_TOTAL_ITEM,\n` +
+        `  i.RT_ALIQ_IBS_MUN_ITEM         = ${aliquotasBase.ALIQ_IBS_MUN},\n` +
+        `  i.RT_REDUCAO_ALIQ_IBS_MUN_ITEM = ${reducoes.REDUCAO_ALIQ_IBS_MUN},\n` +
+        `  i.RT_ALIQ_EFETIVA_IBS_MUN_ITEM = ${ibsMunEfetiva},\n` +
+        `  i.RT_VAL_IBS_MUN_ITEM          = ${ibsMunEfetiva === '0' ? '0' : `((${ibsMunEfetiva} / 100) * i.MI_VLR_TOTAL_ITEM)`},\n` +
+        `  i.RT_VLR_BASECBS_ITEM          = i.MI_VLR_TOTAL_ITEM,\n` +
+        `  i.RT_ALIQ_CBS_ITEM             = ${aliquotasBase.ALIQ_CBS},\n` +
+        `  i.RT_REDUCAO_ALIQ_CBS_ITEM     = ${reducoes.REDUCAO_ALIQ_CBS},\n` +
+        `  i.RT_ALIQ_EFETIVA_CBS_ITEM     = ${cbsEfetiva},\n` +
+        `  i.RT_VLR_CBS_ITEM              = ((${cbsEfetiva} / 100) * i.MI_VLR_TOTAL_ITEM)\n` +
+        `WHERE\n` +
+        `  COALESCE(NULLIF(i.RT_CODCST_CLASSTRIB_IBSCBS_ITEM, ''), '') = ${formatValue(codigoOficial)}\n` +
+        `  AND i.NOTAFISCAL IN (SELECT NOTAFISCAL FROM MOV_NOTA WHERE NFE_TRANSMITIDA='N' AND DATAEMISSAO>='01.07.2026');`;
       const output = document.getElementById('classTribSqlOutput');
       output.textContent = sql;
       output.hidden = false;
@@ -1229,6 +1283,7 @@ const APP_VERSION = '5.23';
         </div>
         <div class="class-trib-sql-actions">
           <button type="button" class="btn-primary" id="generateClassTribSqlBtn" data-cst="${escapeHtml(cst)}" data-class-trib="${escapeHtml(codigo)}">⚡ Gerar UPDATE CARDAP</button>
+          <button type="button" class="btn-primary" id="generateMovNotaItemSqlBtn" data-cst="${escapeHtml(cst)}" data-class-trib="${escapeHtml(codigo)}">⚡ Recalcula Mov_Nota_Item</button>
           <button type="button" class="btn-secondary" id="copyClassTribSqlBtn" hidden>📋 Copiar SQL</button>
         </div>
         <pre id="classTribSqlOutput" class="class-trib-sql-output" hidden aria-live="polite"></pre>`;
@@ -1316,6 +1371,10 @@ const APP_VERSION = '5.23';
       const generateButton = event.target.closest('#generateClassTribSqlBtn');
       if (generateButton) {
         gerarUpdateCardapClassTributaria(generateButton.dataset.cst, generateButton.dataset.classTrib);
+      }
+      const movNotaItemButton = event.target.closest('#generateMovNotaItemSqlBtn');
+      if (movNotaItemButton) {
+        gerarUpdateMovNotaItem(movNotaItemButton.dataset.cst, movNotaItemButton.dataset.classTrib);
       }
       if (event.target.closest('#copyClassTribSqlBtn')) copiarUpdateClassTributaria();
     });
