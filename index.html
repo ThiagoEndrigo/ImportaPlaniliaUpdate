@@ -1534,7 +1534,7 @@
             if (syncEnabled) {
               const valorSincronizado = valorClasstribIbscbs || getValorCampo(row, 'CODCST_CLASSTRIB');
               if (valorSincronizado) {
-                if (campoExisteNaPlanilha('CODCST_CLASSTRIB')) {
+                if (headers.some(h => h.toUpperCase() === 'CODCST_CLASSTRIB')) {
                   const idCT = escapeIdentifier('CODCST_CLASSTRIB');
                   if (!processedFields.has('CODCST_CLASSTRIB')) {
                     setClauses.push(`${idCT} = ${formatValue(valorSincronizado)}`);
@@ -1549,7 +1549,7 @@
                   }
                 }
 
-                if (campoExisteNaPlanilha('CODCST_CLASSTRIB_IBSCBS')) {
+                if (headers.some(h => h.toUpperCase() === 'CODCST_CLASSTRIB_IBSCBS')) {
                   const idAlias = escapeIdentifier('CODCST_CLASSTRIB_IBSCBS');
                   if (!processedFields.has('CODCST_CLASSTRIB_IBSCBS')) {
                     setClauses.push(`${idAlias} = ${formatValue(valorSincronizado)}`);
