@@ -1,4 +1,4 @@
-const APP_VERSION = '1.4';
+const APP_VERSION = '1.5';
 
     // Auto version check & Cache Busting
     (function checkAppVersion() {
@@ -14,7 +14,7 @@ const APP_VERSION = '1.4';
     })();
 
     // ============================================
-    // Controlador da interface do Gerador de UPDATE SQL - v1.4
+    // Controlador da interface do Gerador de UPDATE SQL - v1.5
     // ============================================
 
     let excelData = [];
@@ -111,6 +111,11 @@ const APP_VERSION = '1.4';
     // (classTrib.json) ou manualmente pela interface quando o gerador é aberto localmente.
     const classTribService = new ClassTribService(normalizarValorCodcst);
     let classTribInfo = null;
+    // A consulta é direcionada aos regimes efetivamente usados neste cadastro.
+    // O catálogo completo permanece carregado para a validação das planilhas.
+    const CSTS_DISPONIVEIS_NA_CONSULTA = new Set([
+      '000', '200', '410', '510', '515', '550', '620', '800', '810', '811', '830'
+    ]);
 
     function atualizarStatusClassTrib(mensagem, carregada = false) {
       const el = document.getElementById('classTribStatus');
@@ -1179,10 +1184,13 @@ const APP_VERSION = '1.4';
         resultadosEl.innerHTML = '';
         return;
       }
-      const resultados = classTribService.search(consulta, 100);
-      resumo.textContent = resultados.length === 100
-        ? 'Exibindo os primeiros 100 resultados. Refine a busca para ver menos itens.'
-        : `${resultados.length} classificação(ões) encontrada(s).`;
+      const resultadosFiltrados = classTribService
+        .search(consulta, 1000)
+        .filter(item => CSTS_DISPONIVEIS_NA_CONSULTA.has(item.CST));
+      const resultados = resultadosFiltrados.slice(0, 100);
+      resumo.textContent = resultadosFiltrados.length > 100
+        ? 'Exibindo as primeiras 100 classificações dos CSTs permitidos. Refine a busca para ver menos itens.'
+        : `${resultadosFiltrados.length} classificação(ões) encontrada(s) nos CSTs disponíveis.`;
       resultadosEl.innerHTML = resultados.length === 0
         ? '<div class="class-trib-result">Nenhuma classificação encontrada.</div>'
         : resultados.map(item => `
@@ -1618,4 +1626,4 @@ const APP_VERSION = '1.4';
       }
     });
 
-    console.log('✅ v1.4 - Interface inicializada com serviços fiscais e de SQL separados');
+    console.log('✅ v1.5 - Interface inicializada com serviços fiscais e de SQL separados');
