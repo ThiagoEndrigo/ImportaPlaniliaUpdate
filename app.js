@@ -1,4 +1,4 @@
-const APP_VERSION = '5.30';
+const APP_VERSION = '1.1';
 
     // Auto version check & Cache Busting
     (function checkAppVersion() {
@@ -14,7 +14,7 @@ const APP_VERSION = '5.30';
     })();
 
     // ============================================
-    // Controlador da interface do Gerador de UPDATE SQL - v5.30
+    // Controlador da interface do Gerador de UPDATE SQL - v1.1
     // ============================================
 
     let excelData = [];
@@ -1621,4 +1621,4 @@ const APP_VERSION = '5.30';
       }
     });
 
-    console.log('✅ v5.21 - Interface inicializada com serviços fiscais e de SQL separados');
+    console.log('✅ v1.1 - Interface inicializada com serviços fiscais e de SQL separados');
