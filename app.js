@@ -1,4 +1,4 @@
-const APP_VERSION = '5.27';
+const APP_VERSION = '5.29';
 
     // Auto version check & Cache Busting
     (function checkAppVersion() {
@@ -14,7 +14,7 @@ const APP_VERSION = '5.27';
     })();
 
     // ============================================
-    // Controlador da interface do Gerador de UPDATE SQL - v5.27
+    // Controlador da interface do Gerador de UPDATE SQL - v5.29
     // ============================================
 
     let excelData = [];
@@ -740,9 +740,16 @@ const APP_VERSION = '5.27';
       const temIbscbs = planilhaStats.temIbscbs;
       let classificacoesInvalidas = 0;
       let classificacoesForaVigencia = 0;
+      const linhasComClassificacaoInvalida = [];
 
-      if (classTribInfo && temIbscbs && (planilhaStats.temClasstrib || planilhaStats.temClasstribIbscbs)) {
-        excelData.forEach(row => {
+      const possuiCamposClassificacao = temIbscbs && (planilhaStats.temClasstrib || planilhaStats.temClasstribIbscbs);
+      if (possuiCamposClassificacao && !classTribInfo) {
+        showStatus('error', '❌ Geração bloqueada: o catálogo oficial SEFAZ de classificações tributárias não está disponível para validação.');
+        return;
+      }
+
+      if (possuiCamposClassificacao) {
+        excelData.forEach((row, index) => {
           const cst = getValorCampo(row, 'CODCST_IBSCBS');
           const classTrib = getValorCampo(row, 'CODCST_CLASSTRIB_IBSCBS') || getValorCampo(row, 'CODCST_CLASSTRIB');
           if (!cst && !classTrib) return;
@@ -750,11 +757,31 @@ const APP_VERSION = '5.27';
             cst,
             classTrib
           );
-          if (!classificacao) classificacoesInvalidas++;
+          if (!classificacao) {
+            classificacoesInvalidas++;
+            // excelData começa após o cabeçalho, que ocupa a linha 1 da planilha.
+            linhasComClassificacaoInvalida.push({
+              linha: index + 2,
+              cst: cst || '(CST vazio)',
+              classTrib: classTrib || '(ClassTrib vazio)'
+            });
+          }
           else if (!classificacaoEstaVigente(classificacao)) classificacoesForaVigencia++;
         });
-        if (classificacoesInvalidas > 0 || classificacoesForaVigencia > 0) {
-          const aviso = `A tabela SEFAZ identificou ${classificacoesInvalidas} combinação(ões) inexistente(s) e ${classificacoesForaVigencia} fora da vigência. Deseja gerar os SQLs mesmo assim?`;
+        if (classificacoesInvalidas > 0) {
+          const limiteDeLinhasExibidas = 8;
+          const linhas = linhasComClassificacaoInvalida
+            .slice(0, limiteDeLinhasExibidas)
+            .map(item => `linha ${item.linha} (CST ${escapeHtml(item.cst)} | ClassTrib ${escapeHtml(item.classTrib)})`)
+            .join('; ');
+          const complemento = linhasComClassificacaoInvalida.length > limiteDeLinhasExibidas
+            ? `; e mais ${linhasComClassificacaoInvalida.length - limiteDeLinhasExibidas} linha(s)`
+            : '';
+          showStatus('error', `❌ Geração bloqueada: ${classificacoesInvalidas} combinação(ões) CST/ClassTrib incompatível(is) com a tabela SEFAZ. Corrija a planilha. Problemas em: ${linhas}${complemento}.`);
+          return;
+        }
+        if (classificacoesForaVigencia > 0) {
+          const aviso = `A tabela SEFAZ identificou ${classificacoesForaVigencia} classificação(ões) fora da vigência. Deseja gerar os SQLs mesmo assim?`;
           if (!window.confirm(aviso)) {
             showStatus('warning', '⚠️ Geração cancelada para correção das classificações tributárias.');
             return;
