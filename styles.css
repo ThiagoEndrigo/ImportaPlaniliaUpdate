@@ -691,9 +691,11 @@
 }
 
 .class-trib-modal {
-  width: min(1120px, 96vw);
-  max-width: 1120px;
-  max-height: 92vh;
+  width: min(1440px, 98vw);
+  max-width: 1440px;
+  max-height: 96vh;
+  min-height: min(720px, 90vh);
+  padding: 32px;
   overflow-y: auto;
 }
 
@@ -736,7 +738,7 @@
 }
 
 .class-trib-results {
-  max-height: 360px;
+  max-height: 520px;
   overflow-y: auto;
   display: grid;
   gap: 8px;
@@ -921,7 +923,11 @@
 }
 
 @media (max-width: 700px) {
-  .class-trib-modal { width: min(96vw, 1120px); }
+  .class-trib-modal {
+    width: 96vw;
+    min-height: auto;
+    padding: 22px;
+  }
   .tax-columns { grid-template-columns: 1fr; }
 }
 
