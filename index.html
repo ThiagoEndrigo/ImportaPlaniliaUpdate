@@ -7,14 +7,14 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Gerador de UPDATE SQL v5.27</title>
+  <title>Gerador de UPDATE SQL v5.30</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
     rel="stylesheet">
   <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
-  <link rel="stylesheet" href="./styles.css?v=5.27">
+  <link rel="stylesheet" href="./styles.css?v=5.30">
 </head>
 
 <body>
@@ -41,7 +41,7 @@
 
       <div class="table-name-row">
         <label>🗄️ Nome da Tabela:</label>
-        <input type="text" id="tableNameInput" placeholder="ex: produtos, clientes, vendas" value="produtos">
+        <input type="text" id="tableNameInput" placeholder="ex: CARDAP, produtos, clientes" value="CARDAP">
         <span style="font-size: 0.75rem; color: var(--text-muted);">🔒 O nome será usado no comando UPDATE (não pode
           ficar vazio)</span>
       </div>
@@ -107,6 +107,7 @@
         <h3>📝 SQL Gerados</h3>
         <span class="counter" id="sqlCounter">0 comandos gerados</span>
       </div>
+      <section id="classTribValidationNotice" class="class-trib-validation-notice" hidden aria-live="polite"></section>
       <div class="status info" id="statusMsg">⚡ Configure o nome da tabela, os campos e clique em "Gerar UPDATE SQL"
       </div>
       <pre class="sql-content" id="sqlOutput">-- Nenhum SQL gerado ainda --</pre>
@@ -161,10 +162,22 @@
     </div>
   </div>
 
-  <script src="./class-trib-data.js?v=5.27"></script>
-  <script src="./class-trib-service.js?v=5.27"></script>
-  <script src="./sql-statement-builder.js?v=5.27"></script>
-  <script src="./app.js?v=5.27"></script>
+  <div class="sheet-modal-overlay" id="classTribValidationModalOverlay" role="dialog" aria-modal="true" aria-labelledby="classTribValidationModalTitle">
+    <div class="sheet-modal class-trib-validation-modal">
+      <h3 id="classTribValidationModalTitle">⚠️ Classificações tributárias incompatíveis</h3>
+      <p id="classTribValidationModalSummary"></p>
+      <div id="classTribValidationModalList" class="class-trib-invalid-list"></div>
+      <div class="sheet-modal-actions">
+        <button type="button" class="btn-secondary" id="cancelClassTribValidationBtn">Cancelar</button>
+        <button type="button" class="btn-primary" id="continueClassTribValidationBtn">Gerar mesmo assim</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./class-trib-data.js?v=5.30"></script>
+  <script src="./class-trib-service.js?v=5.30"></script>
+  <script src="./sql-statement-builder.js?v=5.30"></script>
+  <script src="./app.js?v=5.30"></script>
 </body>
 
 </html>

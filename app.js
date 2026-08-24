@@ -1,4 +1,4 @@
-const APP_VERSION = '5.29';
+const APP_VERSION = '5.30';
 
     // Auto version check & Cache Busting
     (function checkAppVersion() {
@@ -14,12 +14,12 @@ const APP_VERSION = '5.29';
     })();
 
     // ============================================
-    // Controlador da interface do Gerador de UPDATE SQL - v5.29
+    // Controlador da interface do Gerador de UPDATE SQL - v5.30
     // ============================================
 
     let excelData = [];
     let headers = [];
-    let currentTableName = 'produtos';
+    let currentTableName = 'CARDAP';
     let generatedSQLs = [];
     let isGenerating = false;
     let originalFileName = '';
@@ -665,13 +665,10 @@ const APP_VERSION = '5.29';
           showStatus('warning', '⚡ A célula A1 da planilha estava em branco. Os cabeçalhos foram realinhados automaticamente com a 1ª coluna de dados!');
         }
 
-        if (originalFileName) {
-          const suggestedName = originalFileName.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
-          if (suggestedName) {
-            tableNameInput.value = suggestedName;
-            currentTableName = suggestedName;
-          }
-        }
+        // A importação é destinada à atualização do cadastro CARDAP. O usuário
+        // ainda pode alterar o campo antes de gerar os comandos, se necessário.
+        tableNameInput.value = 'CARDAP';
+        currentTableName = 'CARDAP';
 
         const sheetLabel = currentWorkbook.SheetNames.length > 1 ? ` | Aba: <strong>${escapeHtml(sheetName)}</strong>` : '';
         tableInfoDiv.innerHTML = `📊 Arquivo: <strong>${escapeHtml(currentFile.name)}</strong>${sheetLabel} | ${excelData.length} registros | ${headers.length} campos<br><span style="font-size:0.75rem;">✅ Todas as células foram lidas como TEXTO</span>`;
@@ -741,6 +738,7 @@ const APP_VERSION = '5.29';
       let classificacoesInvalidas = 0;
       let classificacoesForaVigencia = 0;
       const linhasComClassificacaoInvalida = [];
+      limparAvisoClassificacoesInvalidas();
 
       const possuiCamposClassificacao = temIbscbs && (planilhaStats.temClasstrib || planilhaStats.temClasstribIbscbs);
       if (possuiCamposClassificacao && !classTribInfo) {
@@ -769,16 +767,11 @@ const APP_VERSION = '5.29';
           else if (!classificacaoEstaVigente(classificacao)) classificacoesForaVigencia++;
         });
         if (classificacoesInvalidas > 0) {
-          const limiteDeLinhasExibidas = 8;
-          const linhas = linhasComClassificacaoInvalida
-            .slice(0, limiteDeLinhasExibidas)
-            .map(item => `linha ${item.linha} (CST ${escapeHtml(item.cst)} | ClassTrib ${escapeHtml(item.classTrib)})`)
-            .join('; ');
-          const complemento = linhasComClassificacaoInvalida.length > limiteDeLinhasExibidas
-            ? `; e mais ${linhasComClassificacaoInvalida.length - limiteDeLinhasExibidas} linha(s)`
-            : '';
-          showStatus('error', `❌ Geração bloqueada: ${classificacoesInvalidas} combinação(ões) CST/ClassTrib incompatível(is) com a tabela SEFAZ. Corrija a planilha. Problemas em: ${linhas}${complemento}.`);
-          return;
+          const continuar = await confirmarGeracaoComClassificacoesInvalidas(linhasComClassificacaoInvalida);
+          if (!continuar) {
+            showStatus('warning', '⚠️ Geração cancelada. Corrija as classificações indicadas antes de tentar novamente.');
+            return;
+          }
         }
         if (classificacoesForaVigencia > 0) {
           const aviso = `A tabela SEFAZ identificou ${classificacoesForaVigencia} classificação(ões) fora da vigência. Deseja gerar os SQLs mesmo assim?`;
@@ -1022,7 +1015,6 @@ const APP_VERSION = '5.29';
         if (cstFormatCount > 0) formatMsg += ` 🔧 ${cstFormatCount} CST(s) formatados.`;
         if (syncCount > 0) formatMsg += ` 📌 ${syncCount} registro(s) sincronizados.`;
         if (autoFillCount > 0) formatMsg += ` 📌 ${autoFillCount} registro(s) com auto-fill.`;
-        if (classificacoesInvalidas > 0) formatMsg += ` ⚠️ ${classificacoesInvalidas} classificação(ões) não encontrada(s) na SEFAZ.`;
         if (classificacoesForaVigencia > 0) formatMsg += ` ⚠️ ${classificacoesForaVigencia} classificação(ões) fora da vigência.`;
         if (registrosIgnorados > 0) formatMsg += ` ⚠️ ${registrosIgnorados} ignorados.`;
 
@@ -1117,17 +1109,60 @@ const APP_VERSION = '5.29';
       const autoFieldsInfoEl = document.getElementById('autoFieldsInfo');
       if (autoFieldsInfoEl) autoFieldsInfoEl.style.display = 'none';
       document.getElementById('sheetModalOverlay').classList.remove('active');
-      if (originalFileName) {
-        tableNameInput.value = originalFileName.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
-      } else {
-        tableNameInput.value = 'produtos';
-      }
+      tableNameInput.value = 'CARDAP';
       currentTableName = tableNameInput.value;
       tableNameInput.classList.remove('error-input');
       if (headers.length > 0) {
         renderFieldSelectors();
       }
       showStatus('info', '🔄 Configurações resetadas.');
+    }
+
+    function montarListaClassificacoesInvalidas(itens, limite = 100) {
+      return itens.slice(0, limite).map(item => `
+        <div class="class-trib-invalid-item">
+          <span class="class-trib-invalid-line">Linha ${item.linha}</span>
+          <span><strong>CST:</strong> ${escapeHtml(item.cst)}</span>
+          <span><strong>Classificação tributária:</strong> ${escapeHtml(item.classTrib)}</span>
+        </div>`).join('');
+    }
+
+    function exibirAvisoClassificacoesInvalidas(itens) {
+      const limite = 100;
+      const complemento = itens.length > limite
+        ? `<p>Exibindo as primeiras ${limite} de ${itens.length} linhas com problema.</p>`
+        : '';
+      classTribValidationNotice.hidden = false;
+      classTribValidationNotice.innerHTML = `
+        <h4>⚠️ Classificações tributárias incompatíveis</h4>
+        <p>${itens.length} linha(s) possuem uma combinação CST/ClassTrib que não foi encontrada na tabela SEFAZ.</p>
+        ${complemento}
+        <div class="class-trib-invalid-list">${montarListaClassificacoesInvalidas(itens, limite)}</div>`;
+    }
+
+    function limparAvisoClassificacoesInvalidas() {
+      classTribValidationNotice.hidden = true;
+      classTribValidationNotice.innerHTML = '';
+    }
+
+    function confirmarGeracaoComClassificacoesInvalidas(itens) {
+      exibirAvisoClassificacoesInvalidas(itens);
+      classTribValidationModalSummary.textContent = `${itens.length} linha(s) inválida(s) foram encontradas. Gerar os UPDATEs mesmo assim pode causar erro de classificação tributária.`;
+      classTribValidationModalList.innerHTML = montarListaClassificacoesInvalidas(itens);
+      classTribValidationModalOverlay.classList.add('active');
+
+      return new Promise(resolve => {
+        const concluir = continuar => {
+          classTribValidationModalOverlay.classList.remove('active');
+          cancelClassTribValidationBtn.removeEventListener('click', cancelar);
+          continueClassTribValidationBtn.removeEventListener('click', confirmar);
+          resolve(continuar);
+        };
+        const cancelar = () => concluir(false);
+        const confirmar = () => concluir(true);
+        cancelClassTribValidationBtn.addEventListener('click', cancelar);
+        continueClassTribValidationBtn.addEventListener('click', confirmar);
+      });
     }
 
     function showStatus(type, message) {
@@ -1368,6 +1403,12 @@ const APP_VERSION = '5.29';
     const sqlOutput = document.getElementById('sqlOutput');
     const sqlCounter = document.getElementById('sqlCounter');
     const statusDiv = document.getElementById('statusMsg');
+    const classTribValidationNotice = document.getElementById('classTribValidationNotice');
+    const classTribValidationModalOverlay = document.getElementById('classTribValidationModalOverlay');
+    const classTribValidationModalSummary = document.getElementById('classTribValidationModalSummary');
+    const classTribValidationModalList = document.getElementById('classTribValidationModalList');
+    const cancelClassTribValidationBtn = document.getElementById('cancelClassTribValidationBtn');
+    const continueClassTribValidationBtn = document.getElementById('continueClassTribValidationBtn');
     const selectAllSet = document.getElementById('selectAllSet');
     const selectAllWhere = document.getElementById('selectAllWhere');
     const tableNameInput = document.getElementById('tableNameInput');
