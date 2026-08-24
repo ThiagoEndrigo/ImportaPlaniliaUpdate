@@ -1,4 +1,4 @@
-const APP_VERSION = '1.1';
+const APP_VERSION = '1.3';
 
     // Auto version check & Cache Busting
     (function checkAppVersion() {
@@ -14,7 +14,7 @@ const APP_VERSION = '1.1';
     })();
 
     // ============================================
-    // Controlador da interface do Gerador de UPDATE SQL - v1.1
+    // Controlador da interface do Gerador de UPDATE SQL - v1.3
     // ============================================
 
     let excelData = [];
@@ -143,12 +143,9 @@ const APP_VERSION = '1.1';
 
     function classificacaoSemAliquota(classificacao) {
       if (!classificacao) return false;
-      if (String(classificacao.TipoAliquota || '').includes('Sem Alíquota')) return true;
-      const cst = classificacao.CST;
-      // O catálogo embarcado é compilado de classTrib.json e não inclui TipoAliquota.
-      // Estes grupos e exceções são as classificações "3 - Sem Alíquota" dessa fonte.
-      if (['410', '510', '550', '800', '810', '811', '820'].includes(cst)) return true;
-      return ['400|400002', '620|620007'].includes(`${cst}|${classificacao.cClassTrib}`);
+      // Indicador oficial da tabela cClassTrib/SEFAZ. A decisão é por combinação
+      // CST + ClassTrib, e não por todo um CST.
+      return String(classificacao.TipoAliquota || '').includes('Sem Alíquota');
     }
 
     const CAMPOS_ALIQUOTA = [
@@ -1621,4 +1618,4 @@ const APP_VERSION = '1.1';
       }
     });
 
-    console.log('✅ v1.1 - Interface inicializada com serviços fiscais e de SQL separados');
+    console.log('✅ v1.3 - Interface inicializada com serviços fiscais e de SQL separados');

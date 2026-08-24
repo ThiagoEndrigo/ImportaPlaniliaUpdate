@@ -51,6 +51,7 @@ class ClassTribService {
         DescricaoClassTrib: item.n || '',
         pRedIBS: item.ri,
         pRedCBS: item.rc,
+        TipoAliquota: item.ta || '',
         InicioVigencia: item.i,
         FimVigencia: item.f,
         Publicacao: item.p
