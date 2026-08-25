@@ -1,4 +1,4 @@
-const APP_VERSION = '1.5';
+const APP_VERSION = '1.6';
 
     // Auto version check & Cache Busting
     (function checkAppVersion() {
@@ -14,7 +14,7 @@ const APP_VERSION = '1.5';
     })();
 
     // ============================================
-    // Controlador da interface do Gerador de UPDATE SQL - v1.5
+    // Controlador da interface do Gerador de UPDATE SQL - v1.6
     // ============================================
 
     let excelData = [];
@@ -1038,6 +1038,111 @@ const APP_VERSION = '1.5';
     // ============================================
     // FUNÇÕES DE UTILIDADE E EVENTOS
     // ============================================
+    async function generateInsertSQL() {
+      if (isGenerating) {
+        showStatus('warning', '⏳ Aguarde, já está gerando...');
+        return;
+      }
+
+      const nomeTabela = tableNameInput.value.trim();
+      if (!nomeTabela) {
+        showStatus('error', '❌ O nome da tabela não pode estar vazio.');
+        tableNameInput.classList.add('error-input');
+        tableNameInput.focus();
+        return;
+      }
+      if (excelData.length === 0) {
+        showStatus('error', '❌ Nenhum dado encontrado.');
+        return;
+      }
+
+      const insertFields = getSelectedSetFields();
+      if (insertFields.length === 0) {
+        showStatus('error', '❌ Selecione pelo menos um campo para gerar o INSERT.');
+        return;
+      }
+      const camposInexistentes = insertFields.filter(field => !campoExisteNaPlanilha(field));
+      if (camposInexistentes.length > 0) {
+        showStatus('error', `❌ Campos NÃO existem na planilha: ${camposInexistentes.join(', ')}`);
+        return;
+      }
+
+      const possuiCamposClassificacao = planilhaStats.temIbscbs
+        && (planilhaStats.temClasstrib || planilhaStats.temClasstribIbscbs);
+      limparAvisoClassificacoesInvalidas();
+      if (possuiCamposClassificacao && !classTribInfo) {
+        showStatus('error', '❌ Geração bloqueada: o catálogo oficial SEFAZ de classificações tributárias não está disponível para validação.');
+        return;
+      }
+      if (possuiCamposClassificacao) {
+        const linhasInvalidas = [];
+        let classificacoesForaVigencia = 0;
+        excelData.forEach((row, index) => {
+          const cst = getValorCampo(row, 'CODCST_IBSCBS');
+          const classTrib = getValorCampo(row, 'CODCST_CLASSTRIB_IBSCBS') || getValorCampo(row, 'CODCST_CLASSTRIB');
+          if (!cst && !classTrib) return;
+          const classificacao = obterClassificacaoOficial(cst, classTrib);
+          if (!classificacao) {
+            linhasInvalidas.push({ linha: index + 2, cst: cst || '(CST vazio)', classTrib: classTrib || '(ClassTrib vazio)' });
+          } else if (!classificacaoEstaVigente(classificacao)) {
+            classificacoesForaVigencia++;
+          }
+        });
+        if (linhasInvalidas.length > 0 && !await confirmarGeracaoComClassificacoesInvalidas(linhasInvalidas)) {
+          showStatus('warning', '⚠️ Geração de INSERT cancelada. Corrija as classificações indicadas antes de tentar novamente.');
+          return;
+        }
+        if (classificacoesForaVigencia > 0 && !window.confirm(`A tabela SEFAZ identificou ${classificacoesForaVigencia} classificação(ões) fora da vigência. Deseja gerar os INSERTs mesmo assim?`)) {
+          showStatus('warning', '⚠️ Geração de INSERT cancelada para correção das classificações tributárias.');
+          return;
+        }
+      }
+
+      currentTableName = nomeTabela;
+      tableNameInput.classList.remove('error-input');
+      isGenerating = true;
+      generateBtn.disabled = true;
+      generateInsertBtn.disabled = true;
+      generateInsertBtn.innerHTML = '⏳ Gerando SQLs...';
+      try {
+        const sqlCommands = [];
+        let registrosIgnorados = 0;
+        excelData.forEach(row => {
+          const campos = [];
+          const valores = [];
+          insertFields.forEach(field => {
+            let valor = getValorCampo(row, field);
+            if (valor === undefined || valor === null || valor === '') return;
+            if (deveFormatarCST(field)) valor = formatarCST(valor);
+            campos.push(escapeIdentifier(field));
+            valores.push(formatValue(valor));
+          });
+          if (campos.length === 0) {
+            registrosIgnorados++;
+            return;
+          }
+          sqlCommands.push(`INSERT INTO ${escapeIdentifier(currentTableName)} (${campos.join(', ')}) VALUES (${valores.join(', ')});`);
+        });
+        if (sqlCommands.length === 0) {
+          showStatus('error', '❌ Nenhum INSERT foi gerado.');
+          return;
+        }
+        generatedSQLs = sqlCommands;
+        sqlOutput.textContent = generatedSQLs.join('\n\n');
+        sqlCounter.textContent = `${sqlCommands.length} comandos gerados`;
+        const complemento = registrosIgnorados > 0 ? ` ⚠️ ${registrosIgnorados} registro(s) sem valores selecionados foram ignorados.` : '';
+        showStatus('success', `✅ ${sqlCommands.length} INSERT(s) gerado(s)!${complemento}`);
+      } catch (error) {
+        console.error('Erro:', error);
+        showStatus('error', '❌ Erro ao gerar INSERTs: ' + error.message);
+      } finally {
+        isGenerating = false;
+        generateBtn.disabled = false;
+        generateInsertBtn.disabled = false;
+        generateInsertBtn.innerHTML = '➕ Gerar INSERT SQL';
+      }
+    }
+
     function copySQLs() {
       if (generatedSQLs.length === 0) {
         showStatus('error', '❌ Nenhum SQL gerado para copiar');
@@ -1402,6 +1507,7 @@ const APP_VERSION = '1.5';
     const setFieldsDiv = document.getElementById('setFields');
     const whereFieldsDiv = document.getElementById('whereFields');
     const generateBtn = document.getElementById('generateBtn');
+    const generateInsertBtn = document.getElementById('generateInsertBtn');
     const copyBtn = document.getElementById('copyBtn');
     const exportBtn = document.getElementById('exportBtn');
     const clearBtn = document.getElementById('clearBtn');
@@ -1596,6 +1702,7 @@ const APP_VERSION = '1.5';
     });
 
     generateBtn.addEventListener('click', generateSQL);
+    generateInsertBtn.addEventListener('click', generateInsertSQL);
     copyBtn.addEventListener('click', copySQLs);
     exportBtn.addEventListener('click', exportSQLs);
     clearBtn.addEventListener('click', clearAll);
@@ -1626,4 +1733,4 @@ const APP_VERSION = '1.5';
       }
     });
 
-    console.log('✅ v1.5 - Interface inicializada com serviços fiscais e de SQL separados');
+    console.log('✅ v1.6 - Interface inicializada com serviços fiscais e de SQL separados');
