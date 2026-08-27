@@ -1,4 +1,4 @@
-const APP_VERSION = '1.7';
+const APP_VERSION = '1.8';
 
 // Auto version check & Cache Busting
 (function checkAppVersion() {
@@ -14,7 +14,7 @@ const APP_VERSION = '1.7';
 })();
 
 // ============================================
-// Controlador da interface do Gerador de UPDATE SQL - v1.7
+// Controlador da interface do Gerador de UPDATE SQL - v1.8
 // ============================================
 
 let excelData = [];
@@ -235,6 +235,7 @@ function deveFormatarCST(nomeCampo) {
 
 const ALIASES_CODCST_IBSCBS = [
   'CODCST_IBSCBS',
+  'CODCST_IS',
   'CODCST_IBS_CBS',
   'CODCSTIBSCBS',
   'CODCST_IBS',
@@ -248,6 +249,8 @@ const ALIASES_CODCST_IBSCBS = [
 
 const ALIASES_CODCST_CLASSTRIB = [
   'CODCST_CLASSTRIB',
+  'CODCST_CLASSTRIB_IBSCBS',
+  'CODCST_CLASSTRIB_IS',
   'CODCST_CLASS_TRIB',
   'CODCST_CLASSTRIB_IBS',
   'COD_CLASSTRIB',
@@ -259,12 +262,9 @@ const ALIASES_CODCST_CLASSTRIB = [
   'CLASSTRIB_IBS'
 ];
 
-// This field is distinct from CODCST_CLASSTRIB. Keep its aliases isolated
-// so a spreadsheet column for one tax field can never populate the other.
-const ALIASES_CODCST_CLASSTRIB_IBSCBS = [
-  'CODCST_CLASSTRIB_IBSCBS',
-  'CODCST_CLASSTRIB_IBS_CBS'
-];
+// Os códigos de classificação tributária representam o mesmo dado fiscal.
+// Os nomes variam conforme a versão/regra tributária da tabela de origem.
+const ALIASES_CODCST_CLASSTRIB_IBSCBS = ALIASES_CODCST_CLASSTRIB;
 
 function ehAliasIbscbs(nomeCampo) {
   if (!nomeCampo) return false;
@@ -366,19 +366,19 @@ function analisarPlanilha() {
   planilhaStats.camposEncontrados = [...headers];
   planilhaStats.temIbscbs = headers.some(h => ehAliasIbscbs(h));
   planilhaStats.temClasstrib = headers.some(h => ehAliasClasstrib(h));
-  planilhaStats.temClasstribIbscbs = headers.some(h => h.toUpperCase() === 'CODCST_CLASSTRIB_IBSCBS' || h.toUpperCase() === 'CODCST_CLASSTRIB_IBS_CBS');
+  planilhaStats.temClasstribIbscbs = headers.some(h => ehAliasClasstribIbscbs(h));
   planilhaStats.camposAusentes = CAMPOS_ALIQUOTA.filter(campo => !campoExisteNaPlanilha(campo));
 
   const nomeIbscbs = headers.find(h => ehAliasIbscbs(h)) || 'CODCST_IBSCBS';
   const nomeClasstrib = headers.find(h => ehAliasClasstrib(h)) || 'CODCST_CLASSTRIB';
   let resumoOficial = '• Tabela SEFAZ: <span style="color: #64748b;">não carregada — não haverá validação oficial.</span>';
-  if (classTribInfo && planilhaStats.temIbscbs && (planilhaStats.temClasstrib || planilhaStats.temClasstribIbscbs)) {
+  if (classTribInfo && planilhaStats.temIbscbs && planilhaStats.temClasstribIbscbs) {
     let validas = 0;
     let invalidas = 0;
     let foraVigencia = 0;
     excelData.forEach(row => {
       const cst = getValorCampo(row, 'CODCST_IBSCBS');
-      const classTrib = getValorCampo(row, 'CODCST_CLASSTRIB_IBSCBS') || getValorCampo(row, 'CODCST_CLASSTRIB');
+      const classTrib = getValorCampo(row, 'CODCST_CLASSTRIB_IBSCBS');
       if (!cst && !classTrib) return;
       const classificacao = obterClassificacaoOficial(
         cst,
@@ -399,8 +399,8 @@ function analisarPlanilha() {
       📊 <strong>Análise da planilha:</strong><br>
       • Total de registros: <span>${planilhaStats.totalRegistros}</span><br>
       • Campos encontrados: <span>${planilhaStats.camposEncontrados.length}</span><br>
-      • CST IBSCBS presente: <span>${planilhaStats.temIbscbs ? `✅ Sim (${escapeHtml(nomeIbscbs)})` : '❌ Não'}</span><br>
-      • CLASSTRIB presente: <span>${planilhaStats.temClasstrib ? `✅ Sim (${escapeHtml(nomeClasstrib)})` : '❌ Não'}</span><br>
+      • CST IBSCBS/IS presente: <span>${planilhaStats.temIbscbs ? `✅ Sim (${escapeHtml(nomeIbscbs)})` : '❌ Não'}</span><br>
+      • CLASSTRIB IBSCBS/IS presente: <span>${planilhaStats.temClasstribIbscbs ? `✅ Sim (${escapeHtml(nomeClasstrib)})` : '❌ Não'}</span><br>
       ${resumoOficial}<br>
       ${planilhaStats.camposAusentes.length > 0 ? `• Campos de alíquota não presentes na planilha (não serão incluídos): <span style="color: #64748b;">${planilhaStats.camposAusentes.length}</span>` : '• Todos os campos de alíquota estão presentes ✅'}
     `;
@@ -745,8 +745,8 @@ async function generateSQL() {
   const linhasComClassificacaoInvalida = [];
   limparAvisoClassificacoesInvalidas();
 
-  // A validação oficial da SEFAZ é feita exclusivamente pela combinação dos
-  // campos IBSCBS. O CST convencional e CODCST_CLASSTRIB não participam dela.
+  // A validação oficial da SEFAZ usa os campos lógicos de CST e ClassTrib da
+  // nova regra tributária, aceitando seus nomes equivalentes na planilha.
   const possuiCamposClassificacao = temIbscbs && planilhaStats.temClasstribIbscbs;
   if (possuiCamposClassificacao && !classTribInfo) {
     showStatus('error', '❌ Geração bloqueada: o catálogo oficial SEFAZ de classificações tributárias não está disponível para validação.');
@@ -767,8 +767,8 @@ async function generateSQL() {
         // excelData começa após o cabeçalho, que ocupa a linha 1 da planilha.
         linhasComClassificacaoInvalida.push({
           linha: index + 2,
-          cst: cst || '(CODCST_IBSCBS vazio)',
-          classTrib: classTrib || '(CODCST_CLASSTRIB_IBSCBS vazio)'
+          cst: cst || '(CODCST_IBSCBS/CODCST_IS vazio)',
+          classTrib: classTrib || '(CODCST_CLASSTRIB_IBSCBS/CODCST_CLASSTRIB_IS/CODCST_CLASSTRIB vazio)'
         });
       }
       else if (!classificacaoEstaVigente(classificacao)) classificacoesForaVigencia++;
@@ -1072,7 +1072,8 @@ async function generateInsertSQL() {
     return;
   }
 
-  // A validação oficial da SEFAZ é feita exclusivamente pelos campos IBSCBS.
+  // A validação oficial da SEFAZ aceita os nomes equivalentes dos campos da
+  // nova regra tributária.
   const possuiCamposClassificacao = planilhaStats.temIbscbs
     && planilhaStats.temClasstribIbscbs;
   limparAvisoClassificacoesInvalidas();
@@ -1091,8 +1092,8 @@ async function generateInsertSQL() {
       if (!classificacao) {
         linhasInvalidas.push({
           linha: index + 2,
-          cst: cst || '(CODCST_IBSCBS vazio)',
-          classTrib: classTrib || '(CODCST_CLASSTRIB_IBSCBS vazio)'
+          cst: cst || '(CODCST_IBSCBS/CODCST_IS vazio)',
+          classTrib: classTrib || '(CODCST_CLASSTRIB_IBSCBS/CODCST_CLASSTRIB_IS/CODCST_CLASSTRIB vazio)'
         });
       } else if (!classificacaoEstaVigente(classificacao)) {
         classificacoesForaVigencia++;
@@ -1239,8 +1240,8 @@ function montarListaClassificacoesInvalidas(itens, limite = 100) {
   return itens.slice(0, limite).map(item => `
         <div class="class-trib-invalid-item">
           <span class="class-trib-invalid-line">Linha ${item.linha}</span>
-          <span><strong>CODCST_IBSCBS:</strong> ${escapeHtml(item.cst)}</span>
-          <span><strong>CODCST_CLASSTRIB_IBSCBS:</strong> ${escapeHtml(item.classTrib)}</span>
+          <span><strong>CODCST_IBSCBS / CODCST_IS:</strong> ${escapeHtml(item.cst)}</span>
+          <span><strong>Classificação tributária:</strong> ${escapeHtml(item.classTrib)}</span>
         </div>`).join('');
 }
 
@@ -1252,7 +1253,7 @@ function exibirAvisoClassificacoesInvalidas(itens) {
   classTribValidationNotice.hidden = false;
   classTribValidationNotice.innerHTML = `
         <h4>⚠️ Classificações tributárias incompatíveis</h4>
-        <p>${itens.length} linha(s) possuem uma combinação CODCST_IBSCBS/CODCST_CLASSTRIB_IBSCBS que não foi encontrada na tabela SEFAZ.</p>
+        <p>${itens.length} linha(s) possuem uma combinação de CST e classificação tributária que não foi encontrada na tabela SEFAZ.</p>
         ${complemento}
         <div class="class-trib-invalid-list">${montarListaClassificacoesInvalidas(itens, limite)}</div>`;
 }
@@ -1743,4 +1744,4 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-console.log('✅ v1.7 - Interface inicializada com serviços fiscais e de SQL separados');
+console.log('✅ v1.8 - Interface inicializada com serviços fiscais e de SQL separados');
