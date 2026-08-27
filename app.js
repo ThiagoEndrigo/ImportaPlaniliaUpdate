@@ -745,7 +745,9 @@ async function generateSQL() {
   const linhasComClassificacaoInvalida = [];
   limparAvisoClassificacoesInvalidas();
 
-  const possuiCamposClassificacao = temIbscbs && (planilhaStats.temClasstrib || planilhaStats.temClasstribIbscbs);
+  // A validação oficial da SEFAZ é feita exclusivamente pela combinação dos
+  // campos IBSCBS. O CST convencional e CODCST_CLASSTRIB não participam dela.
+  const possuiCamposClassificacao = temIbscbs && planilhaStats.temClasstribIbscbs;
   if (possuiCamposClassificacao && !classTribInfo) {
     showStatus('error', '❌ Geração bloqueada: o catálogo oficial SEFAZ de classificações tributárias não está disponível para validação.');
     return;
@@ -754,7 +756,7 @@ async function generateSQL() {
   if (possuiCamposClassificacao) {
     excelData.forEach((row, index) => {
       const cst = getValorCampo(row, 'CODCST_IBSCBS');
-      const classTrib = getValorCampo(row, 'CODCST_CLASSTRIB_IBSCBS') || getValorCampo(row, 'CODCST_CLASSTRIB');
+      const classTrib = getValorCampo(row, 'CODCST_CLASSTRIB_IBSCBS');
       if (!cst && !classTrib) return;
       const classificacao = obterClassificacaoOficial(
         cst,
@@ -765,8 +767,8 @@ async function generateSQL() {
         // excelData começa após o cabeçalho, que ocupa a linha 1 da planilha.
         linhasComClassificacaoInvalida.push({
           linha: index + 2,
-          cst: cst || '(CST vazio)',
-          classTrib: classTrib || '(ClassTrib vazio)'
+          cst: cst || '(CODCST_IBSCBS vazio)',
+          classTrib: classTrib || '(CODCST_CLASSTRIB_IBSCBS vazio)'
         });
       }
       else if (!classificacaoEstaVigente(classificacao)) classificacoesForaVigencia++;
@@ -1070,8 +1072,9 @@ async function generateInsertSQL() {
     return;
   }
 
+  // A validação oficial da SEFAZ é feita exclusivamente pelos campos IBSCBS.
   const possuiCamposClassificacao = planilhaStats.temIbscbs
-    && (planilhaStats.temClasstrib || planilhaStats.temClasstribIbscbs);
+    && planilhaStats.temClasstribIbscbs;
   limparAvisoClassificacoesInvalidas();
   if (possuiCamposClassificacao && !classTribInfo) {
     showStatus('error', '❌ Geração bloqueada: o catálogo oficial SEFAZ de classificações tributárias não está disponível para validação.');
@@ -1082,11 +1085,15 @@ async function generateInsertSQL() {
     let classificacoesForaVigencia = 0;
     excelData.forEach((row, index) => {
       const cst = getValorCampo(row, 'CODCST_IBSCBS');
-      const classTrib = getValorCampo(row, 'CODCST_CLASSTRIB_IBSCBS') || getValorCampo(row, 'CODCST_CLASSTRIB');
+      const classTrib = getValorCampo(row, 'CODCST_CLASSTRIB_IBSCBS');
       if (!cst && !classTrib) return;
       const classificacao = obterClassificacaoOficial(cst, classTrib);
       if (!classificacao) {
-        linhasInvalidas.push({ linha: index + 2, cst: cst || '(CST vazio)', classTrib: classTrib || '(ClassTrib vazio)' });
+        linhasInvalidas.push({
+          linha: index + 2,
+          cst: cst || '(CODCST_IBSCBS vazio)',
+          classTrib: classTrib || '(CODCST_CLASSTRIB_IBSCBS vazio)'
+        });
       } else if (!classificacaoEstaVigente(classificacao)) {
         classificacoesForaVigencia++;
       }
@@ -1232,8 +1239,8 @@ function montarListaClassificacoesInvalidas(itens, limite = 100) {
   return itens.slice(0, limite).map(item => `
         <div class="class-trib-invalid-item">
           <span class="class-trib-invalid-line">Linha ${item.linha}</span>
-          <span><strong>CST:</strong> ${escapeHtml(item.cst)}</span>
-          <span><strong>Classificação tributária:</strong> ${escapeHtml(item.classTrib)}</span>
+          <span><strong>CODCST_IBSCBS:</strong> ${escapeHtml(item.cst)}</span>
+          <span><strong>CODCST_CLASSTRIB_IBSCBS:</strong> ${escapeHtml(item.classTrib)}</span>
         </div>`).join('');
 }
 
@@ -1245,7 +1252,7 @@ function exibirAvisoClassificacoesInvalidas(itens) {
   classTribValidationNotice.hidden = false;
   classTribValidationNotice.innerHTML = `
         <h4>⚠️ Classificações tributárias incompatíveis</h4>
-        <p>${itens.length} linha(s) possuem uma combinação CST/ClassTrib que não foi encontrada na tabela SEFAZ.</p>
+        <p>${itens.length} linha(s) possuem uma combinação CODCST_IBSCBS/CODCST_CLASSTRIB_IBSCBS que não foi encontrada na tabela SEFAZ.</p>
         ${complemento}
         <div class="class-trib-invalid-list">${montarListaClassificacoesInvalidas(itens, limite)}</div>`;
 }
