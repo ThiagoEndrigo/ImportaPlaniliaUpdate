@@ -1,4 +1,4 @@
-const APP_VERSION = '1.8';
+const APP_VERSION = '1.9';
 
 // Auto version check & Cache Busting
 (function checkAppVersion() {
@@ -14,7 +14,7 @@ const APP_VERSION = '1.8';
 })();
 
 // ============================================
-// Controlador da interface do Gerador de UPDATE SQL - v1.8
+// Controlador da interface do Gerador de UPDATE SQL - v1.9
 // ============================================
 
 let excelData = [];
@@ -983,22 +983,31 @@ async function generateSQL() {
         // CODCST_CLASSTRIB = CODCST_CLASSTRIB_IS = CODCST_CLASSTRIB_IBSCBS
         // CODCST_IS = CODCST_IBSCBS
 
+        // Função auxiliar para extrair o valor de uma cláusula SET já montada
+        function extrairValorDaClausula(clausula) {
+          // Formato: "CAMPO = 'valor'" ou "CAMPO = NULL"
+          const match = clausula.match(/^[^\s]+\s+=\s+(.+)$/);
+          return match ? match[1] : null;
+        }
+
         // Grupo 1: Classificação Tributária (CODCST_CLASSTRIB = CODCST_CLASSTRIB_IS = CODCST_CLASSTRIB_IBSCBS)
         const camposGrupo1 = ['CODCST_CLASSTRIB', 'CODCST_CLASSTRIB_IS', 'CODCST_CLASSTRIB_IBSCBS'];
         let valorGrupo1 = undefined;
-        // 1. Procuramos se algum campo do Grupo 1 foi processado e tem valor
+
+        // 1. Procuramos se algum campo do Grupo 1 já está nas setClauses com valor
         for (const g1Field of camposGrupo1) {
           const idEscaped = escapeIdentifier(g1Field);
           const idx = setClauses.findIndex(c => c.startsWith(`${idEscaped} =`));
           if (idx !== -1) {
-            const parts = setClauses[idx].split(' = ');
-            if (parts.length > 1 && parts[1] !== 'NULL') {
-              valorGrupo1 = parts[1];
+            const extraido = extrairValorDaClausula(setClauses[idx]);
+            if (extraido && extraido !== 'NULL') {
+              valorGrupo1 = extraido;
               break;
             }
           }
         }
-        // 2. Se nenhum está nas setClauses, mas algum dos campos está na planilha
+
+        // 2. Se nenhum está nas setClauses, buscamos direto na planilha
         if (valorGrupo1 === undefined) {
           const valorBruto = getValorCampo(row, 'CODCST_CLASSTRIB') || 
                              getValorCampo(row, 'CODCST_CLASSTRIB_IS') || 
@@ -1007,37 +1016,45 @@ async function generateSQL() {
             valorGrupo1 = formatValue(normalizarValorCodcst('CODCST_CLASSTRIB_IBSCBS', valorBruto));
           }
         }
-        // Se encontramos algum valor válido para o Grupo 1, aplicamos a todos
+
+        // Aplicamos o valor encontrado a TODOS os 3 campos do grupo
         if (valorGrupo1 !== undefined && valorGrupo1 !== 'NULL') {
+          if (j === 0) console.log('[Grupo1] Sincronizando 3 campos com valor:', valorGrupo1);
           camposGrupo1.forEach(g1Field => {
             const idEscaped = escapeIdentifier(g1Field);
             const idx = setClauses.findIndex(c => c.startsWith(`${idEscaped} =`));
             const novaClausula = `${idEscaped} = ${valorGrupo1}`;
             if (idx === -1) {
               setClauses.push(novaClausula);
+              if (j === 0) console.log(`  [Grupo1] ADICIONOU: ${novaClausula}`);
             } else {
               setClauses[idx] = novaClausula;
+              if (j === 0) console.log(`  [Grupo1] ATUALIZOU: ${novaClausula}`);
             }
             processedFields.add(g1Field.toUpperCase());
           });
+        } else {
+          if (j === 0) console.log('[Grupo1] Nenhum valor encontrado para sincronizar. valorGrupo1:', valorGrupo1);
         }
 
         // Grupo 2: CST IBS/CBS (CODCST_IS = CODCST_IBSCBS)
         const camposGrupo2 = ['CODCST_IS', 'CODCST_IBSCBS'];
         let valorGrupo2 = undefined;
-        // 1. Procuramos se algum campo do Grupo 2 foi processado e tem valor
+
+        // 1. Procuramos se algum campo do Grupo 2 já está nas setClauses com valor
         for (const g2Field of camposGrupo2) {
           const idEscaped = escapeIdentifier(g2Field);
           const idx = setClauses.findIndex(c => c.startsWith(`${idEscaped} =`));
           if (idx !== -1) {
-            const parts = setClauses[idx].split(' = ');
-            if (parts.length > 1 && parts[1] !== 'NULL') {
-              valorGrupo2 = parts[1];
+            const extraido = extrairValorDaClausula(setClauses[idx]);
+            if (extraido && extraido !== 'NULL') {
+              valorGrupo2 = extraido;
               break;
             }
           }
         }
-        // 2. Se nenhum está nas setClauses, mas algum dos campos está na planilha
+
+        // 2. Se nenhum está nas setClauses, buscamos direto na planilha
         if (valorGrupo2 === undefined) {
           const valorBruto = getValorCampo(row, 'CODCST_IBSCBS') || 
                              getValorCampo(row, 'CODCST_IS');
@@ -1045,19 +1062,25 @@ async function generateSQL() {
             valorGrupo2 = formatValue(formatarCST(valorBruto));
           }
         }
-        // Se encontramos algum valor válido para o Grupo 2, aplicamos a ambos
+
+        // Aplicamos o valor encontrado a AMBOS os campos do grupo
         if (valorGrupo2 !== undefined && valorGrupo2 !== 'NULL') {
+          if (j === 0) console.log('[Grupo2] Sincronizando 2 campos com valor:', valorGrupo2);
           camposGrupo2.forEach(g2Field => {
             const idEscaped = escapeIdentifier(g2Field);
             const idx = setClauses.findIndex(c => c.startsWith(`${idEscaped} =`));
             const novaClausula = `${idEscaped} = ${valorGrupo2}`;
             if (idx === -1) {
               setClauses.push(novaClausula);
+              if (j === 0) console.log(`  [Grupo2] ADICIONOU: ${novaClausula}`);
             } else {
               setClauses[idx] = novaClausula;
+              if (j === 0) console.log(`  [Grupo2] ATUALIZOU: ${novaClausula}`);
             }
             processedFields.add(g2Field.toUpperCase());
           });
+        } else {
+          if (j === 0) console.log('[Grupo2] Nenhum valor encontrado para sincronizar. valorGrupo2:', valorGrupo2);
         }
 
         for (const field of whereFields) {
