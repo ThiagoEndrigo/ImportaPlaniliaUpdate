@@ -1,4 +1,4 @@
-const APP_VERSION = '1.9';
+const APP_VERSION = '1.10';
 
 // Auto version check & Cache Busting
 (function checkAppVersion() {
@@ -14,7 +14,7 @@ const APP_VERSION = '1.9';
 })();
 
 // ============================================
-// Controlador da interface do Gerador de UPDATE SQL - v1.9
+// Controlador da interface do Gerador de UPDATE SQL - v1.10
 // ============================================
 
 let excelData = [];
@@ -990,8 +990,9 @@ async function generateSQL() {
           return match ? match[1] : null;
         }
 
-        // Grupo 1: Classificação Tributária (CODCST_CLASSTRIB = CODCST_CLASSTRIB_IS = CODCST_CLASSTRIB_IBSCBS)
-        const camposGrupo1 = ['CODCST_CLASSTRIB', 'CODCST_CLASSTRIB_IS', 'CODCST_CLASSTRIB_IBSCBS'];
+        // Grupo 1: use a coluna IBSCBS como fonte prioritária quando houver
+        // colunas equivalentes com valores divergentes na planilha.
+        const camposGrupo1 = ['CODCST_CLASSTRIB_IBSCBS', 'CODCST_CLASSTRIB_IS', 'CODCST_CLASSTRIB'];
         let valorGrupo1 = undefined;
 
         // 1. Procuramos se algum campo do Grupo 1 já está nas setClauses com valor
@@ -1037,8 +1038,9 @@ async function generateSQL() {
           if (j === 0) console.log('[Grupo1] Nenhum valor encontrado para sincronizar. valorGrupo1:', valorGrupo1);
         }
 
-        // Grupo 2: CST IBS/CBS (CODCST_IS = CODCST_IBSCBS)
-        const camposGrupo2 = ['CODCST_IS', 'CODCST_IBSCBS'];
+        // Grupo 2: CODCST_IBSCBS é a fonte prioritária da nova regra tributária.
+        // CODCST_IS recebe esse mesmo valor para manter os campos equivalentes.
+        const camposGrupo2 = ['CODCST_IBSCBS', 'CODCST_IS'];
         let valorGrupo2 = undefined;
 
         // 1. Procuramos se algum campo do Grupo 2 já está nas setClauses com valor
@@ -1236,8 +1238,8 @@ async function generateInsertSQL() {
       });
 
       // Regra de igualdade para INSERT
-      // Grupo 1: Classificação Tributária (CODCST_CLASSTRIB = CODCST_CLASSTRIB_IS = CODCST_CLASSTRIB_IBSCBS)
-      const camposGrupo1 = ['CODCST_CLASSTRIB', 'CODCST_CLASSTRIB_IS', 'CODCST_CLASSTRIB_IBSCBS'];
+      // A coluna IBSCBS prevalece quando as colunas equivalentes divergirem.
+      const camposGrupo1 = ['CODCST_CLASSTRIB_IBSCBS', 'CODCST_CLASSTRIB_IS', 'CODCST_CLASSTRIB'];
       let valorGrupo1 = undefined;
       for (const g1Field of camposGrupo1) {
         if (processedFields.has(g1Field)) {
@@ -1270,8 +1272,8 @@ async function generateInsertSQL() {
         });
       }
 
-      // Grupo 2: CST IBS/CBS (CODCST_IS = CODCST_IBSCBS)
-      const camposGrupo2 = ['CODCST_IS', 'CODCST_IBSCBS'];
+      // CODCST_IBSCBS é a fonte prioritária da nova regra tributária.
+      const camposGrupo2 = ['CODCST_IBSCBS', 'CODCST_IS'];
       let valorGrupo2 = undefined;
       for (const g2Field of camposGrupo2) {
         if (processedFields.has(g2Field)) {
@@ -1919,4 +1921,4 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-console.log('✅ v1.8 - Interface inicializada com serviços fiscais e de SQL separados');
+console.log('✅ v1.10 - Interface inicializada com serviços fiscais e de SQL separados');
