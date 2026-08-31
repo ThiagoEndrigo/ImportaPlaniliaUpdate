@@ -998,19 +998,13 @@ async function generateSQL() {
             }
           }
         }
-        // 2. Se nenhum está nas setClauses, mas um deles foi selecionado em setFields
+        // 2. Se nenhum está nas setClauses, mas algum dos campos está na planilha
         if (valorGrupo1 === undefined) {
-          const hasGroup1Selected = setFields.some(f => {
-            const u = f.toUpperCase();
-            return u === 'CODCST_CLASSTRIB' || u === 'CODCST_CLASSTRIB_IS' || u === 'CODCST_CLASSTRIB_IBSCBS' || ehAliasClasstrib(u);
-          });
-          if (hasGroup1Selected) {
-            const valorBruto = getValorCampo(row, 'CODCST_CLASSTRIB') || 
-                               getValorCampo(row, 'CODCST_CLASSTRIB_IS') || 
-                               getValorCampo(row, 'CODCST_CLASSTRIB_IBSCBS');
-            if (valorBruto !== undefined && valorBruto !== null && valorBruto !== '') {
-              valorGrupo1 = formatValue(normalizarValorCodcst('CODCST_CLASSTRIB_IBSCBS', valorBruto));
-            }
+          const valorBruto = getValorCampo(row, 'CODCST_CLASSTRIB') || 
+                             getValorCampo(row, 'CODCST_CLASSTRIB_IS') || 
+                             getValorCampo(row, 'CODCST_CLASSTRIB_IBSCBS');
+          if (valorBruto !== undefined && valorBruto !== null && valorBruto !== '') {
+            valorGrupo1 = formatValue(normalizarValorCodcst('CODCST_CLASSTRIB_IBSCBS', valorBruto));
           }
         }
         // Se encontramos algum valor válido para o Grupo 1, aplicamos a todos
@@ -1043,18 +1037,12 @@ async function generateSQL() {
             }
           }
         }
-        // 2. Se nenhum está nas setClauses, mas um deles foi selecionado em setFields
+        // 2. Se nenhum está nas setClauses, mas algum dos campos está na planilha
         if (valorGrupo2 === undefined) {
-          const hasGroup2Selected = setFields.some(f => {
-            const u = f.toUpperCase();
-            return u === 'CODCST_IS' || u === 'CODCST_IBSCBS' || ehAliasIbscbs(u);
-          });
-          if (hasGroup2Selected) {
-            const valorBruto = getValorCampo(row, 'CODCST_IBSCBS') || 
-                               getValorCampo(row, 'CODCST_IS');
-            if (valorBruto !== undefined && valorBruto !== null && valorBruto !== '') {
-              valorGrupo2 = formatValue(formatarCST(valorBruto));
-            }
+          const valorBruto = getValorCampo(row, 'CODCST_IBSCBS') || 
+                             getValorCampo(row, 'CODCST_IS');
+          if (valorBruto !== undefined && valorBruto !== null && valorBruto !== '') {
+            valorGrupo2 = formatValue(formatarCST(valorBruto));
           }
         }
         // Se encontramos algum valor válido para o Grupo 2, aplicamos a ambos
@@ -1238,17 +1226,11 @@ async function generateInsertSQL() {
         }
       }
       if (valorGrupo1 === undefined) {
-        const hasGroup1Selected = insertFields.some(f => {
-          const u = f.toUpperCase();
-          return u === 'CODCST_CLASSTRIB' || u === 'CODCST_CLASSTRIB_IS' || u === 'CODCST_CLASSTRIB_IBSCBS' || ehAliasClasstrib(u);
-        });
-        if (hasGroup1Selected) {
-          const valorBruto = getValorCampo(row, 'CODCST_CLASSTRIB') || 
-                             getValorCampo(row, 'CODCST_CLASSTRIB_IS') || 
-                             getValorCampo(row, 'CODCST_CLASSTRIB_IBSCBS');
-          if (valorBruto !== undefined && valorBruto !== null && valorBruto !== '') {
-            valorGrupo1 = formatValue(normalizarValorCodcst('CODCST_CLASSTRIB_IBSCBS', valorBruto));
-          }
+        const valorBruto = getValorCampo(row, 'CODCST_CLASSTRIB') || 
+                           getValorCampo(row, 'CODCST_CLASSTRIB_IS') || 
+                           getValorCampo(row, 'CODCST_CLASSTRIB_IBSCBS');
+        if (valorBruto !== undefined && valorBruto !== null && valorBruto !== '') {
+          valorGrupo1 = formatValue(normalizarValorCodcst('CODCST_CLASSTRIB_IBSCBS', valorBruto));
         }
       }
       if (valorGrupo1 !== undefined && valorGrupo1 !== 'NULL') {
@@ -1278,16 +1260,10 @@ async function generateInsertSQL() {
         }
       }
       if (valorGrupo2 === undefined) {
-        const hasGroup2Selected = insertFields.some(f => {
-          const u = f.toUpperCase();
-          return u === 'CODCST_IS' || u === 'CODCST_IBSCBS' || ehAliasIbscbs(u);
-        });
-        if (hasGroup2Selected) {
-          const valorBruto = getValorCampo(row, 'CODCST_IBSCBS') || 
-                             getValorCampo(row, 'CODCST_IS');
-          if (valorBruto !== undefined && valorBruto !== null && valorBruto !== '') {
-            valorGrupo2 = formatValue(formatarCST(valorBruto));
-          }
+        const valorBruto = getValorCampo(row, 'CODCST_IBSCBS') || 
+                           getValorCampo(row, 'CODCST_IS');
+        if (valorBruto !== undefined && valorBruto !== null && valorBruto !== '') {
+          valorGrupo2 = formatValue(formatarCST(valorBruto));
         }
       }
       if (valorGrupo2 !== undefined && valorGrupo2 !== 'NULL') {

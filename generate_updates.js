@@ -48,6 +48,18 @@ const updates = data.slice(1)
         break;
       }
     }
+    if (valorGrupo1 === undefined) {
+      for (const f of camposGrupo1) {
+        const idx = indexOf(f);
+        if (idx !== -1) {
+          const val = valueOf(row, f);
+          if (val !== '') {
+            valorGrupo1 = val;
+            break;
+          }
+        }
+      }
+    }
     if (valorGrupo1 !== undefined && valorGrupo1 !== '') {
       camposGrupo1.forEach(f => {
         setPairs[f] = valorGrupo1;
@@ -61,6 +73,18 @@ const updates = data.slice(1)
       if (setPairs[f] !== undefined) {
         valorGrupo2 = setPairs[f];
         break;
+      }
+    }
+    if (valorGrupo2 === undefined) {
+      for (const f of camposGrupo2) {
+        const idx = indexOf(f);
+        if (idx !== -1) {
+          const val = valueOf(row, f);
+          if (val !== '') {
+            valorGrupo2 = val;
+            break;
+          }
+        }
       }
     }
     if (valorGrupo2 !== undefined && valorGrupo2 !== '') {
