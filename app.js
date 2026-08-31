@@ -979,6 +979,99 @@ async function generateSQL() {
           }
         }
 
+        // Regra de igualdade das classificações tributárias:
+        // CODCST_CLASSTRIB = CODCST_CLASSTRIB_IS = CODCST_CLASSTRIB_IBSCBS
+        // CODCST_IS = CODCST_IBSCBS
+
+        // Grupo 1: Classificação Tributária (CODCST_CLASSTRIB = CODCST_CLASSTRIB_IS = CODCST_CLASSTRIB_IBSCBS)
+        const camposGrupo1 = ['CODCST_CLASSTRIB', 'CODCST_CLASSTRIB_IS', 'CODCST_CLASSTRIB_IBSCBS'];
+        let valorGrupo1 = undefined;
+        // 1. Procuramos se algum campo do Grupo 1 foi processado e tem valor
+        for (const g1Field of camposGrupo1) {
+          const idEscaped = escapeIdentifier(g1Field);
+          const idx = setClauses.findIndex(c => c.startsWith(`${idEscaped} =`));
+          if (idx !== -1) {
+            const parts = setClauses[idx].split(' = ');
+            if (parts.length > 1 && parts[1] !== 'NULL') {
+              valorGrupo1 = parts[1];
+              break;
+            }
+          }
+        }
+        // 2. Se nenhum está nas setClauses, mas um deles foi selecionado em setFields
+        if (valorGrupo1 === undefined) {
+          const hasGroup1Selected = setFields.some(f => {
+            const u = f.toUpperCase();
+            return u === 'CODCST_CLASSTRIB' || u === 'CODCST_CLASSTRIB_IS' || u === 'CODCST_CLASSTRIB_IBSCBS' || ehAliasClasstrib(u);
+          });
+          if (hasGroup1Selected) {
+            const valorBruto = getValorCampo(row, 'CODCST_CLASSTRIB') || 
+                               getValorCampo(row, 'CODCST_CLASSTRIB_IS') || 
+                               getValorCampo(row, 'CODCST_CLASSTRIB_IBSCBS');
+            if (valorBruto !== undefined && valorBruto !== null && valorBruto !== '') {
+              valorGrupo1 = formatValue(normalizarValorCodcst('CODCST_CLASSTRIB_IBSCBS', valorBruto));
+            }
+          }
+        }
+        // Se encontramos algum valor válido para o Grupo 1, aplicamos a todos
+        if (valorGrupo1 !== undefined && valorGrupo1 !== 'NULL') {
+          camposGrupo1.forEach(g1Field => {
+            const idEscaped = escapeIdentifier(g1Field);
+            const idx = setClauses.findIndex(c => c.startsWith(`${idEscaped} =`));
+            const novaClausula = `${idEscaped} = ${valorGrupo1}`;
+            if (idx === -1) {
+              setClauses.push(novaClausula);
+            } else {
+              setClauses[idx] = novaClausula;
+            }
+            processedFields.add(g1Field.toUpperCase());
+          });
+        }
+
+        // Grupo 2: CST IBS/CBS (CODCST_IS = CODCST_IBSCBS)
+        const camposGrupo2 = ['CODCST_IS', 'CODCST_IBSCBS'];
+        let valorGrupo2 = undefined;
+        // 1. Procuramos se algum campo do Grupo 2 foi processado e tem valor
+        for (const g2Field of camposGrupo2) {
+          const idEscaped = escapeIdentifier(g2Field);
+          const idx = setClauses.findIndex(c => c.startsWith(`${idEscaped} =`));
+          if (idx !== -1) {
+            const parts = setClauses[idx].split(' = ');
+            if (parts.length > 1 && parts[1] !== 'NULL') {
+              valorGrupo2 = parts[1];
+              break;
+            }
+          }
+        }
+        // 2. Se nenhum está nas setClauses, mas um deles foi selecionado em setFields
+        if (valorGrupo2 === undefined) {
+          const hasGroup2Selected = setFields.some(f => {
+            const u = f.toUpperCase();
+            return u === 'CODCST_IS' || u === 'CODCST_IBSCBS' || ehAliasIbscbs(u);
+          });
+          if (hasGroup2Selected) {
+            const valorBruto = getValorCampo(row, 'CODCST_IBSCBS') || 
+                               getValorCampo(row, 'CODCST_IS');
+            if (valorBruto !== undefined && valorBruto !== null && valorBruto !== '') {
+              valorGrupo2 = formatValue(formatarCST(valorBruto));
+            }
+          }
+        }
+        // Se encontramos algum valor válido para o Grupo 2, aplicamos a ambos
+        if (valorGrupo2 !== undefined && valorGrupo2 !== 'NULL') {
+          camposGrupo2.forEach(g2Field => {
+            const idEscaped = escapeIdentifier(g2Field);
+            const idx = setClauses.findIndex(c => c.startsWith(`${idEscaped} =`));
+            const novaClausula = `${idEscaped} = ${valorGrupo2}`;
+            if (idx === -1) {
+              setClauses.push(novaClausula);
+            } else {
+              setClauses[idx] = novaClausula;
+            }
+            processedFields.add(g2Field.toUpperCase());
+          });
+        }
+
         for (const field of whereFields) {
           if (!campoExisteNaPlanilha(field)) continue;
           let valorFinal = getValorCampo(row, field);
@@ -1121,13 +1214,96 @@ async function generateInsertSQL() {
     excelData.forEach(row => {
       const campos = [];
       const valores = [];
+      const processedFields = new Set();
       insertFields.forEach(field => {
         let valor = getValorCampo(row, field);
         if (valor === undefined || valor === null || valor === '') return;
         if (deveFormatarCST(field)) valor = formatarCST(valor);
         campos.push(escapeIdentifier(field));
         valores.push(formatValue(valor));
+        processedFields.add(field.toUpperCase());
       });
+
+      // Regra de igualdade para INSERT
+      // Grupo 1: Classificação Tributária (CODCST_CLASSTRIB = CODCST_CLASSTRIB_IS = CODCST_CLASSTRIB_IBSCBS)
+      const camposGrupo1 = ['CODCST_CLASSTRIB', 'CODCST_CLASSTRIB_IS', 'CODCST_CLASSTRIB_IBSCBS'];
+      let valorGrupo1 = undefined;
+      for (const g1Field of camposGrupo1) {
+        if (processedFields.has(g1Field)) {
+          const idx = campos.indexOf(escapeIdentifier(g1Field));
+          if (idx !== -1) {
+            valorGrupo1 = valores[idx];
+            break;
+          }
+        }
+      }
+      if (valorGrupo1 === undefined) {
+        const hasGroup1Selected = insertFields.some(f => {
+          const u = f.toUpperCase();
+          return u === 'CODCST_CLASSTRIB' || u === 'CODCST_CLASSTRIB_IS' || u === 'CODCST_CLASSTRIB_IBSCBS' || ehAliasClasstrib(u);
+        });
+        if (hasGroup1Selected) {
+          const valorBruto = getValorCampo(row, 'CODCST_CLASSTRIB') || 
+                             getValorCampo(row, 'CODCST_CLASSTRIB_IS') || 
+                             getValorCampo(row, 'CODCST_CLASSTRIB_IBSCBS');
+          if (valorBruto !== undefined && valorBruto !== null && valorBruto !== '') {
+            valorGrupo1 = formatValue(normalizarValorCodcst('CODCST_CLASSTRIB_IBSCBS', valorBruto));
+          }
+        }
+      }
+      if (valorGrupo1 !== undefined && valorGrupo1 !== 'NULL') {
+        camposGrupo1.forEach(g1Field => {
+          const idEscaped = escapeIdentifier(g1Field);
+          const idx = campos.indexOf(idEscaped);
+          if (idx === -1) {
+            campos.push(idEscaped);
+            valores.push(valorGrupo1);
+          } else {
+            valores[idx] = valorGrupo1;
+          }
+          processedFields.add(g1Field);
+        });
+      }
+
+      // Grupo 2: CST IBS/CBS (CODCST_IS = CODCST_IBSCBS)
+      const camposGrupo2 = ['CODCST_IS', 'CODCST_IBSCBS'];
+      let valorGrupo2 = undefined;
+      for (const g2Field of camposGrupo2) {
+        if (processedFields.has(g2Field)) {
+          const idx = campos.indexOf(escapeIdentifier(g2Field));
+          if (idx !== -1) {
+            valorGrupo2 = valores[idx];
+            break;
+          }
+        }
+      }
+      if (valorGrupo2 === undefined) {
+        const hasGroup2Selected = insertFields.some(f => {
+          const u = f.toUpperCase();
+          return u === 'CODCST_IS' || u === 'CODCST_IBSCBS' || ehAliasIbscbs(u);
+        });
+        if (hasGroup2Selected) {
+          const valorBruto = getValorCampo(row, 'CODCST_IBSCBS') || 
+                             getValorCampo(row, 'CODCST_IS');
+          if (valorBruto !== undefined && valorBruto !== null && valorBruto !== '') {
+            valorGrupo2 = formatValue(formatarCST(valorBruto));
+          }
+        }
+      }
+      if (valorGrupo2 !== undefined && valorGrupo2 !== 'NULL') {
+        camposGrupo2.forEach(g2Field => {
+          const idEscaped = escapeIdentifier(g2Field);
+          const idx = campos.indexOf(idEscaped);
+          if (idx === -1) {
+            campos.push(idEscaped);
+            valores.push(valorGrupo2);
+          } else {
+            valores[idx] = valorGrupo2;
+          }
+          processedFields.add(g2Field);
+        });
+      }
+
       if (campos.length === 0) {
         registrosIgnorados++;
         return;
